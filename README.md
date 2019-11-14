@@ -20,7 +20,7 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 ## Todo
 
 - [X] Datareader
-- [ ] Dummy Model
+- [X] Dummy Model
 - [ ] Base Model
 - [ ] Objective function
 - [ ] Model Evaluation
