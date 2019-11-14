@@ -21,7 +21,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=
 
 for epoch in range(num_epochs):
     for data in train_dataloader:
-        img = data["input_image"]
+        img = data["input_image"].cuda()
         # ===================forward=====================
         output = model(img)
         loss = criterion(output, img)

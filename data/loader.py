@@ -83,10 +83,10 @@ class Dataloader(data.Dataset):
             target_q_map = target_q_map.transpose(2, 0, 1)
             lo_image = lo_image.transpose(2, 0, 1)
             lo_q_map = lo_q_map.transpose(2, 0, 1)
-            target_image = torch.from_numpy(target_image).unsqueeze(0)
-            target_q_map = torch.from_numpy(target_q_map).unsqueeze(0)
-            lo_image = torch.from_numpy(lo_image).unsqueeze(0)
-            lo_q_map = torch.from_numpy(lo_q_map).unsqueeze(0)
+            target_image = torch.from_numpy(target_image).unsqueeze(0).float()
+            target_q_map = torch.from_numpy(target_q_map).unsqueeze(0).float()
+            lo_image = torch.from_numpy(lo_image).unsqueeze(0).float()
+            lo_q_map = torch.from_numpy(lo_q_map).unsqueeze(0).float()
 
         data_dict = {
             "input_image": lo_image,
