@@ -7,7 +7,6 @@ import torch
 from torch import nn
 
 
-
 class autoencoder(nn.Module):
     def __init__(self):
         super(autoencoder, self).__init__()
@@ -32,6 +31,7 @@ class autoencoder(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
+
 
 if __name__ == "__main__":
     pass
