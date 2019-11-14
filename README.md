@@ -17,6 +17,14 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 
 - Submit a 384x384 image for each of the 290 test-scenes, for which we will not provide a high resolution image.
 
+## Todo
+
+- [X] Datareader
+- [ ] Dummy Model
+- [ ] Base Model
+- [ ] Objective function
+- [ ] Model Evaluation
+
 ## Links
 
 - [Dataset](https://kelvins.esa.int/proba-v-super-resolution/data/)
