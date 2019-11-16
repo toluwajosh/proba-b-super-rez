@@ -24,7 +24,12 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 - [X] Base Model - Resnet
 - [ ] Final Model - Resnet+
 - [ ] Objective function
-- [ ] Model Evaluation
+- [ ] Pretrain
+  - [ ] Checkpoints and scheduling
+  - [ ] Logging
+  - [ ] Training monitoring
+- [ ] Train and validate
+- [ ] Model Evaluation and analysis
 
 ## Links
 

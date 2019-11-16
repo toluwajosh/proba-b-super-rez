@@ -218,7 +218,7 @@ class ResNet(nn.Module):
     forward = _forward
 
 
-class ResNetBase(ResNet):
+class ResNetAE(ResNet):
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
@@ -261,15 +261,15 @@ class ResNetBase(ResNet):
     forward = _forward
 
 
-def _resnet_base(arch, block, layers, pretrained, progress, **kwargs):
-    model = ResNetBase(block, layers, **kwargs)
+def _resnet_AE(arch, block, layers, pretrained, progress, **kwargs):
+    model = ResNetAE(block, layers, **kwargs)
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
         model.load_state_dict(state_dict, strict=False)
     return model
 
-def resnet18_base(pretrained=False, progress=True, **kwargs):
+def resnet18_AE(pretrained=False, progress=True, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -277,7 +277,7 @@ def resnet18_base(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet_base('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
+    return _resnet_AE('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
                    **kwargs)
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
@@ -324,7 +324,7 @@ def resnet50(pretrained=False, progress=True, **kwargs):
     return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
 
-def resnet50_base(pretrained=False, progress=True, **kwargs):
+def resnet50_AE(pretrained=False, progress=True, **kwargs):
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -332,7 +332,7 @@ def resnet50_base(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet_base('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
+    return _resnet_AE('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
 
 
