@@ -21,7 +21,8 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 
 - [X] Datareader
 - [X] Dummy Model
-- [ ] Base Model
+- [X] Base Model - Resnet
+- [ ] Final Model - Resnet+
 - [ ] Objective function
 - [ ] Model Evaluation
 

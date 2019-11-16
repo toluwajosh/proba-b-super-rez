@@ -21,7 +21,7 @@ class autoencoder(nn.Module):
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(8, 16, 3, stride=2),  # b, 16, 5, 5
             nn.ReLU(True),
-            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),  # b, 8, 15, 15
+            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=0),  # b, 8, 15, 15
             nn.ReLU(True),
             nn.ConvTranspose2d(8, 3, 2, stride=2, padding=1),  # b, 1, 28, 28
             nn.Tanh(),
@@ -30,6 +30,8 @@ class autoencoder(nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
+        # print(x.shape)
+        # exit(0)
         return x
 
 

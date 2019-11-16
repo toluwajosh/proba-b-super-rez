@@ -33,8 +33,11 @@ def is_image_file(filename):
 def image_loader(path):
     return cv2.imread(path)
 
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+compose = transforms.Compose([normalize])
 
-class Dataloader(data.Dataset):
+class ProbaVLoader(data.Dataset):
     def __init__(
         self, data_directory, to_tensor=False, training=True,
     ):
@@ -51,7 +54,6 @@ class Dataloader(data.Dataset):
 
     def __getitem__(self, index):
         directory = self.directories[index]
-        print("Current directory: ", directory)
         files = glob.glob(directory + "/*.png")
 
         lo_images = []
@@ -73,7 +75,8 @@ class Dataloader(data.Dataset):
         lo_image = image_loader(lo_images[lo_id])
         lo_q_map = image_loader(lo_q_maps[lo_id])
 
-        # 2. Resize, if needed
+        # 2. Apply transormations; Resize, etc, if needed
+        # transformed_sample = tsfrm(sample)  # <- example
         # print(lo_q_map.shape)
         # exit(0)
 
