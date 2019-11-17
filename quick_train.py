@@ -14,16 +14,18 @@ from torchsummary import summary
 from data.loader import ProbaVLoader
 from models.simple_autoencoder import autoencoder
 from models.resnet import resnet18_AE, resnet50_AE
+from losses import ProbaVLoss
 
 
 # hyperparameters
 BATCH_SIZE = 2
 WORKERS = 8
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 NUM_EPOCHS = 2000  # since each data point has at least 19 input samples
 SUMMARY = False
 PRETRAINED = False
 CHECKPOINT_PATH = "./checkpoints/checkpoint.ckpt"
+USE_MASK = True
 
 
 train_dataloader = ProbaVLoader("./data/train", to_tensor=True)
@@ -42,7 +44,8 @@ if SUMMARY:
     summary(model, (3, 128, 128))
 # exit(0)
 
-criterion = nn.MSELoss()
+# criterion = nn.MSELoss()
+criterion = ProbaVLoss(mask_flag=USE_MASK)
 optimizer = torch.optim.Adam(
     model.parameters(), lr=LEARNING_RATE
 )  # , weight_decay=1e-5
@@ -54,8 +57,13 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 try:
     # check if checkpoints file of weights file
     checkpoint = torch.load(CHECKPOINT_PATH)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    # pretrained_dict = checkpoint["model_state_dict"]
+    # model_dict = model.state_dict()
+    # pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    # model.load_state_dict(pretrained_dict, strict=False)
+
+    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     epoch_chk = checkpoint["epoch"]
     loss = checkpoint["loss"]
     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
@@ -69,17 +77,33 @@ for epoch in range(NUM_EPOCHS):
     if epoch < epoch_chk:
         continue
     losses = []
-    for data in train_dataloader:
+    # pbar = tqdm(range(len(train_data)))
+    for data in train_data:
         img = data["input_image"].cuda()
         target = data["target_image"].cuda()
+        img_mask = data["input_mask"].cuda()
+        target_mask = data["target_mask"].cuda()
+
+        # print(img.shape)
+        # exit(0)
         # ===================forward=====================
-        output = model(img)
-        loss = criterion(output.mul(255.0), target.mul(255.0))
+        output_lo, output = model(img)
+        loss = criterion(
+            output_lo.mul(255.0),
+            output.mul(255.0),
+            target.mul(255.0),
+            img_mask,
+            target_mask,
+        )
         losses.append(loss.item())
         # ===================backward====================
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        # pbar.set_description(
+        #     "Epoch: {:5d}; Loss: {:8.5f}".format(epoch, np.mean(losses))
+        # )
+        # pbar.update()
     scheduler.step(np.mean(losses))
     # ===================log========================
     print("epoch [{}/{}], loss:{:.4f}".format(epoch + 1, NUM_EPOCHS, np.mean(losses)))

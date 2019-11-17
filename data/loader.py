@@ -74,6 +74,7 @@ class ProbaVLoader(data.Dataset):
         lo_id = random.choice(range(len(lo_q_maps)))
         lo_image = image_loader(lo_images[lo_id])
         lo_q_map = image_loader(lo_q_maps[lo_id])
+        # target_q_map = image_loader(target_q_maps[lo_id])
 
 
         # 2. Apply transormations; Resize, etc, if needed
@@ -82,13 +83,20 @@ class ProbaVLoader(data.Dataset):
         # exit(0)
 
         # for pretrain
-        target_image = cv2.resize(target_image, lo_image.shape[:2])
+        # target_image = cv2.resize(target_image, lo_image.shape[:2])
+        # target_q_map = cv2.resize(target_q_map, lo_image.shape[:2])
         
         lo_image = lo_image/255.0
         target_image = target_image/255.0
+        # lo_q_map = lo_q_map/255.0
+        # target_q_map = target_q_map/255.0
 
-        # print(np.min(target_image))
-        # print(np.max(target_image))
+        lo_q_map[lo_q_map>0] = 1
+        target_q_map[target_q_map>0] = 1
+
+        # print(np.min(target_q_map))
+        # print(np.max(target_q_map))
+        # print(np.median(target_q_map))
         # exit(0)
         # 3. To tensor
         if self.to_tensor:
@@ -96,10 +104,10 @@ class ProbaVLoader(data.Dataset):
             target_q_map = target_q_map.transpose(2, 0, 1)
             lo_image = lo_image.transpose(2, 0, 1)
             lo_q_map = lo_q_map.transpose(2, 0, 1)
-            target_image = torch.from_numpy(target_image).unsqueeze(0).float()
-            target_q_map = torch.from_numpy(target_q_map).unsqueeze(0).float()
-            lo_image = torch.from_numpy(lo_image).unsqueeze(0).float()
-            lo_q_map = torch.from_numpy(lo_q_map).unsqueeze(0).float()
+            target_image = torch.from_numpy(target_image).float()
+            target_q_map = torch.from_numpy(target_q_map).float()
+            lo_image = torch.from_numpy(lo_image).float()
+            lo_q_map = torch.from_numpy(lo_q_map).float()
 
 
 
