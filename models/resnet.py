@@ -228,17 +228,30 @@ class ResNetAE(ResNet):
         # self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
         #                        bias=False)
         self.upsample = nn.Sequential(
+            nn.BatchNorm2d(512),
             nn.ConvTranspose2d(512, 256, 3, stride=2),
+            nn.ReLU(),
+            nn.BatchNorm2d(256),
             nn.Conv2d(256, 256, 3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(256),
             nn.Conv2d(256, 256, 3, padding=1),
-            nn.ReLU(True),
+            nn.ReLU(),
+            nn.BatchNorm2d(256),
             nn.ConvTranspose2d(256, 128, 2, stride=2, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
             nn.Conv2d(128, 128, 3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
             nn.Conv2d(128, 128, 3, padding=1),
-            nn.ReLU(True),
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
             nn.ConvTranspose2d(128, 64, 2, stride=2, padding=0),
+            nn.ReLU(),
+            nn.BatchNorm2d(64),
             nn.Conv2d(64, 3, 3, padding=1),
-            nn.Tanh(),
+            nn.Sigmoid(),
         )
     def _forward(self, x):
         x = self.conv1(x)

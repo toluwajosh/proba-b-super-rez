@@ -20,8 +20,8 @@ from models.resnet import resnet18_AE, resnet50_AE
 BATCH_SIZE = 2
 WORKERS = 8
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 1000  # since each data point has at least 19 input samples
-SUMMARY = True
+NUM_EPOCHS = 2000  # since each data point has at least 19 input samples
+SUMMARY = False
 PRETRAINED = False
 CHECKPOINT_PATH = "./checkpoints/checkpoint.ckpt"
 
@@ -47,7 +47,7 @@ optimizer = torch.optim.Adam(
     model.parameters(), lr=LEARNING_RATE
 )  # , weight_decay=1e-5
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.3, patience=2, verbose=True, min_lr=1e-8
+    optimizer, mode="min", factor=0.8, patience=3, verbose=True, min_lr=1e-8
 )
 
 # load existing model
@@ -62,15 +62,19 @@ try:
 except Exception as e:
     print("\n\nModel not loaded; ", CHECKPOINT_PATH)
     print("Exception: ", e)
+    epoch_chk = 0
 
-
+model.train()
 for epoch in range(NUM_EPOCHS):
+    if epoch < epoch_chk:
+        continue
     losses = []
     for data in train_dataloader:
         img = data["input_image"].cuda()
+        target = data["target_image"].cuda()
         # ===================forward=====================
         output = model(img)
-        loss = criterion(output, img)
+        loss = criterion(output.mul(255.0), target.mul(255.0))
         losses.append(loss.item())
         # ===================backward====================
         optimizer.zero_grad()

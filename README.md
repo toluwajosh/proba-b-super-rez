@@ -24,10 +24,12 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 - [X] Base Model - Resnet
 - [ ] Objective function
   - [X] MSE
+  - [ ] Masking
 - [ ] Pretraining
   - [X] Learning rate scheduling
   - [X] Checkpoints
   - [ ] Logging
+  - [ ] Augmentations
   - [ ] Training monitoring
 - [ ] Final Model - Resnet++
 - [ ] Final Training and Validation
@@ -39,4 +41,3 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 - [Scoring](https://kelvins.esa.int/proba-v-super-resolution/scoring/)
 - [Submission Rules](https://kelvins.esa.int/proba-v-super-resolution/submission-rules/)
 - [Post mortem](https://kelvins.esa.int/proba-v-super-resolution-post-mortem/leaderboard/)
-

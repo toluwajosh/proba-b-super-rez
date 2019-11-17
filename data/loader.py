@@ -75,11 +75,21 @@ class ProbaVLoader(data.Dataset):
         lo_image = image_loader(lo_images[lo_id])
         lo_q_map = image_loader(lo_q_maps[lo_id])
 
+
         # 2. Apply transormations; Resize, etc, if needed
         # transformed_sample = tsfrm(sample)  # <- example
         # print(lo_q_map.shape)
         # exit(0)
 
+        # for pretrain
+        target_image = cv2.resize(target_image, lo_image.shape[:2])
+        
+        lo_image = lo_image/255.0
+        target_image = target_image/255.0
+
+        # print(np.min(target_image))
+        # print(np.max(target_image))
+        # exit(0)
         # 3. To tensor
         if self.to_tensor:
             target_image = target_image.transpose(2, 0, 1)
@@ -90,6 +100,9 @@ class ProbaVLoader(data.Dataset):
             target_q_map = torch.from_numpy(target_q_map).unsqueeze(0).float()
             lo_image = torch.from_numpy(lo_image).unsqueeze(0).float()
             lo_q_map = torch.from_numpy(lo_q_map).unsqueeze(0).float()
+
+
+
 
         data_dict = {
             "input_image": lo_image,
