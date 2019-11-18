@@ -14,14 +14,14 @@ from torchsummary import summary
 from data.loader import ProbaVLoader
 from models.simple_autoencoder import autoencoder
 from models.resnet import resnet18_AE, resnet50_AE
-from losses import ProbaVLoss
+from losses import ProbaVLoss, ProbaVEval
 
 
 # hyperparameters
 BATCH_SIZE = 2
 WORKERS = 8
-LEARNING_RATE = 0.0001
-NUM_EPOCHS = 2000  # since each data point has at least 19 input samples
+LEARNING_RATE = 0.001
+NUM_EPOCHS = 500  # since each data point has at least 19 input samples
 SUMMARY = False
 PRETRAINED = False
 CHECKPOINT_PATH = "./checkpoints/checkpoint.ckpt"
@@ -37,6 +37,15 @@ train_data = torch.utils.data.DataLoader(
     pin_memory=True,
 )
 
+valid_dataloader = ProbaVLoader("./data/valid", to_tensor=True)
+valid_data = torch.utils.data.DataLoader(
+    valid_dataloader,
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    num_workers=WORKERS,
+    pin_memory=True,
+)
+
 
 # model = autoencoder().cuda()
 model = resnet50_AE(pretrained=PRETRAINED).cuda()
@@ -46,6 +55,7 @@ if SUMMARY:
 
 # criterion = nn.MSELoss()
 criterion = ProbaVLoss(mask_flag=USE_MASK)
+eval_criterion = ProbaVEval(mask_flag=USE_MASK)
 optimizer = torch.optim.Adam(
     model.parameters(), lr=LEARNING_RATE
 )  # , weight_decay=1e-5
@@ -72,41 +82,59 @@ except Exception as e:
     print("Exception: ", e)
     epoch_chk = 0
 
-model.train()
 for epoch in range(NUM_EPOCHS):
     if epoch < epoch_chk:
         continue
     losses = []
-    # pbar = tqdm(range(len(train_data)))
-    for data in train_data:
-        img = data["input_image"].cuda()
-        target = data["target_image"].cuda()
-        img_mask = data["input_mask"].cuda()
-        target_mask = data["target_mask"].cuda()
+    model.train()
+    with tqdm(total=len(train_data)) as pbar:
+        for data in train_data:
+            img = data["input_image"].cuda()
+            target = data["target_image"].cuda()
+            img_mask = data["input_mask"].cuda()
+            target_mask = data["target_mask"].cuda()
 
-        # print(img.shape)
-        # exit(0)
-        # ===================forward=====================
-        output_lo, output = model(img)
-        loss = criterion(
-            output_lo.mul(255.0),
-            output.mul(255.0),
-            target.mul(255.0),
-            img_mask,
-            target_mask,
-        )
-        losses.append(loss.item())
-        # ===================backward====================
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        # pbar.set_description(
-        #     "Epoch: {:5d}; Loss: {:8.5f}".format(epoch, np.mean(losses))
-        # )
-        # pbar.update()
+            # ===================forward=====================
+            output_lo, output = model(img)
+            loss = criterion(
+                output_lo.mul(255.0),
+                output.mul(255.0),
+                target.mul(255.0),
+                img_mask,
+                target_mask,
+            )
+            losses.append(loss.item())
+            # ===================backward====================
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            pbar.set_description(
+                "Epoch: {:5d}; Loss: {:8.5f}".format(epoch, np.mean(losses))
+            )
+            pbar.update()
     scheduler.step(np.mean(losses))
     # ===================log========================
-    print("epoch [{}/{}], loss:{:.4f}".format(epoch + 1, NUM_EPOCHS, np.mean(losses)))
+    # print("epoch [{}/{}], loss:{:.4f}".format(epoch + 1, NUM_EPOCHS, np.mean(losses)))
+    
+    
+    # evaluate model
+    model.eval()
+    with tqdm(total=len(valid_data)) as pbar_eval:
+        error_list = []
+        for data in valid_data:
+            img = data["input_image"].cuda()
+            target = data["target_image"].cuda()
+            img_mask = data["input_mask"].cuda()
+            target_mask = data["target_mask"].cuda()
+            output_lo, output = model(img)
+            error = eval_criterion(output, target, target_mask)
+            error_list.append(error.item())
+
+            pbar_eval.set_description(
+                "Evaluation error: {:8.5f}".format(np.mean(error_list))
+            )
+            pbar_eval.update()
+
     # save checkpoint
     torch.save(
         {

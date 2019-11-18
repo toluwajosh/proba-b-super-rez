@@ -8,7 +8,9 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-from PIL import Image, ImageOps
+import skimage
+from skimage import io
+from skimage.transform import rescale
 
 IMG_EXTENSIONS = [
     ".jpg",
@@ -33,16 +35,18 @@ def is_image_file(filename):
 def image_loader(path):
     return cv2.imread(path)
 
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
+
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 compose = transforms.Compose([normalize])
+
 
 class ProbaVLoader(data.Dataset):
     def __init__(
-        self, data_directory, to_tensor=False, training=True,
+        self, data_directory, to_tensor=False, mode="train",
     ):
         # directories = os.listdir(data_directory)
         # self.directories = [x[0] for x in os.walk(data_directory)]
+        self.mode = mode
         directories = []
         for item in os.walk(data_directory):
             if len(item[0].split("/")) > 4:  # ignore high level directories
@@ -50,7 +54,7 @@ class ProbaVLoader(data.Dataset):
         self.directories = directories
         self.to_tensor = to_tensor
         print("Directories: ", len(self.directories))
-        print("Done!")
+        print(data_directory, " Done!")
 
     def __getitem__(self, index):
         directory = self.directories[index]
@@ -72,52 +76,49 @@ class ProbaVLoader(data.Dataset):
         # other strategies might be better
         # depending on solution pipeline
         lo_id = random.choice(range(len(lo_q_maps)))
+        print(lo_images[lo_id])
         lo_image = image_loader(lo_images[lo_id])
         lo_q_map = image_loader(lo_q_maps[lo_id])
         # target_q_map = image_loader(target_q_maps[lo_id])
 
-
         # 2. Apply transormations; Resize, etc, if needed
         # transformed_sample = tsfrm(sample)  # <- example
-        # print(lo_q_map.shape)
-        # exit(0)
 
-        # for pretrain
-        # target_image = cv2.resize(target_image, lo_image.shape[:2])
-        # target_q_map = cv2.resize(target_q_map, lo_image.shape[:2])
-        
-        lo_image = lo_image/255.0
-        target_image = target_image/255.0
+        lo_image = lo_image / 255.0
+        if self.mode == "train":
+            target_image = target_image / 255.0
         # lo_q_map = lo_q_map/255.0
         # target_q_map = target_q_map/255.0
 
-        lo_q_map[lo_q_map>0] = 1
-        target_q_map[target_q_map>0] = 1
+        lo_q_map[lo_q_map > 0] = 1
+        target_q_map[target_q_map > 0] = 1
 
-        # print(np.min(target_q_map))
-        # print(np.max(target_q_map))
-        # print(np.median(target_q_map))
-        # exit(0)
         # 3. To tensor
         if self.to_tensor:
-            target_image = target_image.transpose(2, 0, 1)
+            if self.mode == "train":
+                target_image = target_image.transpose(2, 0, 1)
+                target_image = torch.from_numpy(target_image).float()
+
             target_q_map = target_q_map.transpose(2, 0, 1)
+            target_q_map = torch.from_numpy(target_q_map).float()
             lo_image = lo_image.transpose(2, 0, 1)
             lo_q_map = lo_q_map.transpose(2, 0, 1)
-            target_image = torch.from_numpy(target_image).float()
-            target_q_map = torch.from_numpy(target_q_map).float()
             lo_image = torch.from_numpy(lo_image).float()
             lo_q_map = torch.from_numpy(lo_q_map).float()
 
-
-
-
-        data_dict = {
-            "input_image": lo_image,
-            "input_mask": lo_q_map,
-            "target_image": target_image,
-            "target_mask": target_q_map,
-        }
+        if self.mode == "train":
+            data_dict = {
+                "input_image": lo_image,
+                "input_mask": lo_q_map,
+                "target_image": target_image,
+                "target_mask": target_q_map,
+            }
+        else:
+            data_dict = {
+                "input_image": lo_image,
+                "input_mask": lo_q_map,
+                "target_mask": target_q_map,
+            }
 
         return data_dict
 
