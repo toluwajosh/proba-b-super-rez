@@ -308,7 +308,7 @@ class ResNetAE(ResNet):
         )
         # self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
         #                        bias=False)
-        self.upsample = nn.Sequential(
+        self.upsample1 = nn.Sequential(
             nn.BatchNorm2d(512),
             nn.ConvTranspose2d(512, 256, 3, stride=2),
             nn.ReLU(),
@@ -324,32 +324,48 @@ class ResNetAE(ResNet):
             nn.BatchNorm2d(128),
             nn.Conv2d(128, 128, 3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 128, 3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.ConvTranspose2d(128, 64, 2, stride=2, padding=0),
-            nn.ReLU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 3, 3, padding=1),
-            nn.Sigmoid(),
         )
 
         self.upsample2 = nn.Sequential(
+            nn.BatchNorm2d(128 + 64),
+            nn.Conv2d(128 + 64, 256, 3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.ConvTranspose2d(256, 256, 2, stride=2, padding=0),
+            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 128, 3, padding=1),
+            nn.Sigmoid(),
+        )
+
+        # transform features but maintain dimensions
+        self.transformer = nn.Sequential(
             nn.BatchNorm2d(3),
-            nn.ConvTranspose2d(3, 64, 2, stride=1),
+            nn.Conv2d(3, 64, 3, stride=1, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(64),
             nn.Conv2d(64, 128, 3, stride=1, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 256, 3, stride=1, padding=1),
+        )
+
+        self.upsample3 = nn.Sequential(
+            nn.BatchNorm2d(128 + 128),
+            nn.ConvTranspose2d(128 + 128, 256, 2, stride=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 512, 3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(512),
+            nn.Conv2d(512, 256, 3, stride=1, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(256),
             nn.ConvTranspose2d(256, 128, 2, stride=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+        )
+
+        self.final_block = nn.Sequential(
+            nn.BatchNorm2d(128 + 128 + 3),
+            nn.Conv2d(128 + 128 + 3, 128, 3, stride=1, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(128),
             nn.Conv2d(128, 3, 3, stride=1, padding=1),
@@ -357,17 +373,52 @@ class ResNetAE(ResNet):
         )
 
     def _forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
+        x_in = x
+        x_trans = self.transformer(x)
+        # print("transformer out: ", x_trans.shape)
 
+        x_conv = self.conv1(x)
+        x = self.bn1(x_conv)
+        x = self.relu(x)
+        # print("conv 1 out: ", x.shape)
+
+        x = self.maxpool(x)
         x = self.layer1(x)
+        # print("layer 1 out: ", x.shape)
+
         x = self.layer2(x)
-        x_lo = self.upsample(x)  # original size
-        x = self.upsample2(x_lo)
-        # print(x.shape)
+        # print("layer 2 out: ", x.shape)
+
+        x = self.upsample1(x)
+        # print("upsample 1 out: ", x.shape)
+        # concatenate with conv 1 out here
+        x = torch.cat([x_conv, x], 1)
+
+        x_lo = self.upsample2(x)  # original size
+        # print("upsample 2 out: ", x_lo.shape)
+
+        # concatenate with transformer out
+        x = torch.cat([x_trans, x_lo], 1)
+        # print("cat out: ", x.shape)
+
+        x = self.upsample3(x)
+        # print("upsample 3 out: ", x.shape)
+
+        # concatenate interpolated and upconved here
+        x_interpolate = torch.nn.functional.interpolate(
+            x_lo, x.shape[2:], mode="bilinear", align_corners=True
+        )
+        x_up = torch.nn.functional.interpolate(
+            x_in, x.shape[2:], mode="bilinear", align_corners=True
+        )
+        # print("x interpolate out: ", x_interpolate.shape)
+        x = torch.cat([x_up, x_interpolate, x], 1)
+        # print("x cat out: ", x.shape)
+
+        x = self.final_block(x)
+        # print("upsample 4 out: ", x.shape)
         # exit(0)
+
         return x_lo, x
 
     # Allow for accessing forward method in a inherited class

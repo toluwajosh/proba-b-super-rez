@@ -48,10 +48,10 @@ class ProbaVLoss(nn.Module):
             # print("target_mask.shape: ", target_mask.shape)
             # exit(0)
             # mask_weight = 0.85
-            target_lo = torch.nn.functional.interpolate(target, output_lo.shape[2:])
-            target_lo_mask = torch.nn.functional.interpolate(
-                target_mask, output_lo.shape[2:]
-            )
+            # target_lo = torch.nn.functional.interpolate(target, output_lo.shape[2:])
+            # target_lo_mask = torch.nn.functional.interpolate(
+            #     target_mask, output_lo.shape[2:]
+            # )
             # lo_rez_loss = self._mse(output_lo, target_lo)
             # output_lo = output_lo.mul(output_mask)
             # target_lo = target_lo.mul(target_lo_mask)
@@ -59,7 +59,7 @@ class ProbaVLoss(nn.Module):
             #     output_lo, target_lo
             # )
 
-            lo_rez_loss = self._mse_mask(output_lo, target_lo, target_lo_mask)
+            # lo_rez_loss = self._mse_mask(output_lo, target_lo, target_lo_mask)
 
             # hi_rez loss
             # output_mask_hi = torch.nn.functional.interpolate(
@@ -73,8 +73,9 @@ class ProbaVLoss(nn.Module):
             # )
             hi_rez_loss = self._mse_mask(output, target, target_mask)
 
-            loss_weight = 0.15
-            loss = loss_weight * lo_rez_loss + (1 - loss_weight) * hi_rez_loss
+            # loss_weight = 0.15
+            # loss = loss_weight * lo_rez_loss + (1 - loss_weight) * hi_rez_loss
+            loss = hi_rez_loss
         else:
             loss = nn.MSELoss(output, target)
         return loss

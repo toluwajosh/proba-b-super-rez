@@ -30,7 +30,7 @@ CHECKPOINT_PATH = "./checkpoints/checkpoint.ckpt"
 USE_MASK = True
 
 
-test_dataloader = ProbaVLoader("./data/test", to_tensor=True, mode="test")
+test_dataloader = ProbaVLoader("./data/valid", to_tensor=True, mode="train")
 test_data = torch.utils.data.DataLoader(
     test_dataloader,
     batch_size=1,
@@ -44,6 +44,8 @@ test_data = torch.utils.data.DataLoader(
 model = resnet50_AE(pretrained=PRETRAINED).cuda()
 if SUMMARY:
     summary(model, (3, 128, 128))
+
+criterion = ProbaVEval()
 
 # load existing model
 try:
@@ -68,16 +70,21 @@ for epoch in range(NUM_EPOCHS):
         for data in test_data:
             img = data["input_image"].cuda()
             img_mask = data["input_mask"].cuda()
+            target_image = data["target_image"].cuda()
             target_mask = data["target_mask"].cuda()
 
             # ===================forward=====================
             output_lo, output = model(img)
+            image = torch.nn.functional.interpolate(img, output.shape[2:])
+            loss = criterion(image, target_image, target_mask)
+            losses.append(loss.item())
             output_image = output[0].cpu().detach().numpy()
             output_image = np.transpose(output_image, [1,2,0])
             # io.imsave(output_image, "output_image.jpg")
             cv2.imwrite("output_image.jpg", output_image*255)
             exit(0)
-            print("output.shape: ", output_image.shape)
+            # print("output.shape: ", output_image.shape)
             pbar.set_description("Evaluation")
             pbar.update()
-
+    break
+print("Final Error: ", np.mean(losses))

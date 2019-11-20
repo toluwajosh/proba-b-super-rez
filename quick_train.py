@@ -1,7 +1,10 @@
 """
 quick train
 """
+import os
 import torch
+import time
+import logging
 import numpy as np
 import torchvision.models as torch_models
 import torchvision.transforms as transforms
@@ -27,6 +30,20 @@ PRETRAINED = False
 CHECKPOINT_PATH = "./checkpoints/checkpoint.ckpt"
 USE_MASK = True
 
+# log parameters
+human_time = str(time.asctime()).replace(" ", "_").replace(":", "")
+log_path = "./logs/{}.log".format(human_time)
+# create file if it does not exist
+logging.basicConfig(
+    level=logging.INFO,
+    filename=log_path,
+    filemode="w",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logging.info("Model Hyperparameters --------------- >")
+logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
+logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
+
 
 train_dataloader = ProbaVLoader("./data/train", to_tensor=True)
 train_data = torch.utils.data.DataLoader(
@@ -49,9 +66,9 @@ valid_data = torch.utils.data.DataLoader(
 
 # model = autoencoder().cuda()
 model = resnet50_AE(pretrained=PRETRAINED).cuda()
+logging.info(str(model))
 if SUMMARY:
     summary(model, (3, 128, 128))
-# exit(0)
 
 # criterion = nn.MSELoss()
 criterion = ProbaVLoss(mask_flag=USE_MASK)
@@ -60,27 +77,27 @@ optimizer = torch.optim.Adam(
     model.parameters(), lr=LEARNING_RATE
 )  # , weight_decay=1e-5
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.8, patience=3, verbose=True, min_lr=1e-8
+    optimizer, mode="min", factor=0.8, patience=5, verbose=True, min_lr=1e-8
 )
+epoch_chk = 0
 
-# load existing model
-try:
-    # check if checkpoints file of weights file
-    checkpoint = torch.load(CHECKPOINT_PATH)
-    # pretrained_dict = checkpoint["model_state_dict"]
-    # model_dict = model.state_dict()
-    # pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    # model.load_state_dict(pretrained_dict, strict=False)
+# # load existing model
+# try:
+#     # check if checkpoints file of weights file
+#     checkpoint = torch.load(CHECKPOINT_PATH)
+#     # pretrained_dict = checkpoint["model_state_dict"]
+#     # model_dict = model.state_dict()
+#     # pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+#     # model.load_state_dict(pretrained_dict, strict=False)
 
-    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-    # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    epoch_chk = checkpoint["epoch"]
-    loss = checkpoint["loss"]
-    print("\n\nModel Loaded; ", CHECKPOINT_PATH)
-except Exception as e:
-    print("\n\nModel not loaded; ", CHECKPOINT_PATH)
-    print("Exception: ", e)
-    epoch_chk = 0
+#     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+#     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+#     epoch_chk = checkpoint["epoch"]
+#     loss = checkpoint["loss"]
+#     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
+# except Exception as e:
+#     print("\n\nModel not loaded; ", CHECKPOINT_PATH)
+#     print("Exception: ", e)
 
 for epoch in range(NUM_EPOCHS):
     if epoch < epoch_chk:
@@ -115,8 +132,13 @@ for epoch in range(NUM_EPOCHS):
     scheduler.step(np.mean(losses))
     # ===================log========================
     # print("epoch [{}/{}], loss:{:.4f}".format(epoch + 1, NUM_EPOCHS, np.mean(losses)))
-    
-    
+
+    logging.info(
+        "Epoch [{}/{}], Training Loss:{:.4f}".format(
+            epoch + 1, NUM_EPOCHS, np.mean(losses)
+        )
+    )
+
     # evaluate model
     model.eval()
     with tqdm(total=len(valid_data)) as pbar_eval:
@@ -134,7 +156,7 @@ for epoch in range(NUM_EPOCHS):
                 "Evaluation error: {:8.5f}".format(np.mean(error_list))
             )
             pbar_eval.update()
-
+    logging.info("Evaluation Score:{:.4f}".format(np.mean(error_list)))
     # save checkpoint
     torch.save(
         {

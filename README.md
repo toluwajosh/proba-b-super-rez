@@ -24,15 +24,16 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 - [X] Base Model - Resnet
 - [ ] Objective function
   - [X] MSE
-  - [ ] Masking
+  - [X] Masking
 - [ ] Pretraining
   - [X] Learning rate scheduling
   - [X] Checkpoints
-  - [ ] Logging
+  - [X] Logging
   - [ ] Augmentations
   - [ ] Training monitoring
 - [ ] Final Model - Resnet++
 - [ ] Final Training and Validation
+- [ ] Combine multiple results
 - [ ] Model Evaluation and analysis
 
 ## Links

@@ -76,7 +76,7 @@ class ProbaVLoader(data.Dataset):
         # other strategies might be better
         # depending on solution pipeline
         lo_id = random.choice(range(len(lo_q_maps)))
-        print(lo_images[lo_id])
+        # print(lo_images[lo_id])
         lo_image = image_loader(lo_images[lo_id])
         lo_q_map = image_loader(lo_q_maps[lo_id])
         # target_q_map = image_loader(target_q_maps[lo_id])
