@@ -81,23 +81,23 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 )
 epoch_chk = 0
 
-# # load existing model
-# try:
-#     # check if checkpoints file of weights file
-#     checkpoint = torch.load(CHECKPOINT_PATH)
-#     # pretrained_dict = checkpoint["model_state_dict"]
-#     # model_dict = model.state_dict()
-#     # pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-#     # model.load_state_dict(pretrained_dict, strict=False)
+# load existing model
+try:
+    # check if checkpoints file of weights file
+    checkpoint = torch.load(CHECKPOINT_PATH)
+    # pretrained_dict = checkpoint["model_state_dict"]
+    # model_dict = model.state_dict()
+    # pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    # model.load_state_dict(pretrained_dict, strict=False)
 
-#     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-#     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-#     epoch_chk = checkpoint["epoch"]
-#     loss = checkpoint["loss"]
-#     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
-# except Exception as e:
-#     print("\n\nModel not loaded; ", CHECKPOINT_PATH)
-#     print("Exception: ", e)
+    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    epoch_chk = checkpoint["epoch"]
+    loss = checkpoint["loss"]
+    print("\n\nModel Loaded; ", CHECKPOINT_PATH)
+except Exception as e:
+    print("\n\nModel not loaded; ", CHECKPOINT_PATH)
+    print("Exception: ", e)
 
 for epoch in range(NUM_EPOCHS):
     if epoch < epoch_chk:
@@ -112,14 +112,13 @@ for epoch in range(NUM_EPOCHS):
             target_mask = data["target_mask"].cuda()
 
             # ===================forward=====================
-            output_lo, output = model(img)
-            loss = criterion(
-                output_lo.mul(255.0),
-                output.mul(255.0),
-                target.mul(255.0),
-                img_mask,
-                target_mask,
-            )
+            output = model(img)
+            loss = criterion(output, target, img_mask, target_mask,)
+            # loss = criterion(
+            #     output,
+            #     target,
+            #     target_mask,
+            # )
             losses.append(loss.item())
             # ===================backward====================
             optimizer.zero_grad()
@@ -148,7 +147,7 @@ for epoch in range(NUM_EPOCHS):
             target = data["target_image"].cuda()
             img_mask = data["input_mask"].cuda()
             target_mask = data["target_mask"].cuda()
-            output_lo, output = model(img)
+            output = model(img)
             error = eval_criterion(output, target, target_mask)
             error_list.append(error.item())
 

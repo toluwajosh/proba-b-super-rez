@@ -406,10 +406,10 @@ class ResNetAE(ResNet):
 
         # concatenate interpolated and upconved here
         x_interpolate = torch.nn.functional.interpolate(
-            x_lo, x.shape[2:], mode="bilinear", align_corners=True
+            x_lo, x.shape[2:], mode="bicubic", align_corners=True
         )
         x_up = torch.nn.functional.interpolate(
-            x_in, x.shape[2:], mode="bilinear", align_corners=True
+            x_in, x.shape[2:], mode="bicubic", align_corners=True
         )
         # print("x interpolate out: ", x_interpolate.shape)
         x = torch.cat([x_up, x_interpolate, x], 1)
@@ -419,7 +419,7 @@ class ResNetAE(ResNet):
         # print("upsample 4 out: ", x.shape)
         # exit(0)
 
-        return x_lo, x
+        return x
 
     # Allow for accessing forward method in a inherited class
     forward = _forward
