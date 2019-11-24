@@ -23,18 +23,19 @@ class MSEMask(nn.Module):
 
 
 class ProbaVLoss(nn.Module):
-    def __init__(self, mask_flag=True):
+    def __init__(self, mask_flag=True, brightness_bias_flag=True):
         super(ProbaVLoss, self).__init__()
         self.mask_flag = mask_flag
+        self.brightness_bias_flag = brightness_bias_flag
 
     def brightness_bias(self, predict, target, target_mask):
-        return torch.mean(predict.mul(target_mask) - target.mul(target_mask))
+        return torch.mean(target.mul(target_mask) - predict.mul(target_mask))
 
     def _mse(self, predict, target):
         return torch.mean((predict - target) * (predict - target))
 
-    def _mse_mask(self, predict, target, target_mask, brightness_bias=True):
-        if brightness_bias:
+    def _mse_mask(self, predict, target, target_mask):
+        if self.brightness_bias_flag:
             bb = self.brightness_bias(predict, target, target_mask)
             predict_out = predict + bb
         else:
@@ -65,7 +66,7 @@ class ProbaVEval(nn.Module):
         self.mask_flag = mask_flag
 
     def brightness_bias(self, predict, target, target_mask):
-        return torch.mean(predict.mul(target_mask) - target.mul(target_mask))
+        return torch.mean(target.mul(target_mask) - predict.mul(target_mask))
 
     def c_mse(self, predict, target, target_mask):
         predict = predict + self.brightness_bias(predict, target, target_mask)

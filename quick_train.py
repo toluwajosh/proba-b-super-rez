@@ -24,11 +24,13 @@ from losses import ProbaVLoss, ProbaVEval
 BATCH_SIZE = 2
 WORKERS = 8
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 500  # since each data point has at least 19 input samples
+NUM_EPOCHS = 50000  # since each data point has at least 19 input samples
 SUMMARY = False
-PRETRAINED = False
+PRETRAINED = True
 CHECKPOINT_PATH = "./checkpoints/checkpoint.ckpt"
 USE_MASK = True
+ACCUMULATE = 1
+CHECKPOINT_INTERVAL = 20
 
 # log parameters
 human_time = str(time.asctime()).replace(" ", "_").replace(":", "")
@@ -43,6 +45,7 @@ logging.basicConfig(
 logging.info("Model Hyperparameters --------------- >")
 logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
 logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
+logging.info("ACCUMULATE: {}".format(ACCUMULATE))
 
 
 train_dataloader = ProbaVLoader("./data/train", to_tensor=True)
@@ -77,7 +80,7 @@ optimizer = torch.optim.Adam(
     model.parameters(), lr=LEARNING_RATE
 )  # , weight_decay=1e-5
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.8, patience=5, verbose=True, min_lr=1e-8
+    optimizer, mode="min", factor=0.8, patience=20, verbose=True, min_lr=1e-8
 )
 epoch_chk = 0
 
@@ -105,7 +108,7 @@ for epoch in range(NUM_EPOCHS):
     losses = []
     model.train()
     with tqdm(total=len(train_data)) as pbar:
-        for data in train_data:
+        for i, data in enumerate(train_data):
             img = data["input_image"].cuda()
             target = data["target_image"].cuda()
             img_mask = data["input_mask"].cuda()
@@ -121,11 +124,12 @@ for epoch in range(NUM_EPOCHS):
             # )
             losses.append(loss.item())
             # ===================backward====================
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            if (1 + 1) % ACCUMULATE == 0:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
             pbar.set_description(
-                "Epoch: {:5d}; Loss: {:8.5f}".format(epoch, np.mean(losses))
+                "Epoch: {:5d}; Loss: {:8.5f}".format(epoch + 1, np.mean(losses))
             )
             pbar.update()
     scheduler.step(np.mean(losses))
@@ -138,34 +142,35 @@ for epoch in range(NUM_EPOCHS):
         )
     )
 
-    # evaluate model
-    model.eval()
-    with tqdm(total=len(valid_data)) as pbar_eval:
-        error_list = []
-        for data in valid_data:
-            img = data["input_image"].cuda()
-            target = data["target_image"].cuda()
-            img_mask = data["input_mask"].cuda()
-            target_mask = data["target_mask"].cuda()
-            output = model(img)
-            error = eval_criterion(output, target, target_mask)
-            error_list.append(error.item())
+    if (epoch + 1) % CHECKPOINT_INTERVAL == 0:
+        # evaluate model
+        model.eval()
+        with tqdm(total=len(valid_data)) as pbar_eval:
+            error_list = []
+            for data in valid_data:
+                img = data["input_image"].cuda()
+                target = data["target_image"].cuda()
+                img_mask = data["input_mask"].cuda()
+                target_mask = data["target_mask"].cuda()
+                output = model(img)
+                error = eval_criterion(output, target, target_mask)
+                error_list.append(error.item())
 
-            pbar_eval.set_description(
-                "Evaluation error: {:8.5f}".format(np.mean(error_list))
-            )
-            pbar_eval.update()
-    logging.info("Evaluation Score:{:.4f}".format(np.mean(error_list)))
-    # save checkpoint
-    torch.save(
-        {
-            "epoch": epoch,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "loss": np.mean(losses),
-        },
-        CHECKPOINT_PATH,
-    )
+                pbar_eval.set_description(
+                    "Evaluation score: {:8.5f}".format(np.mean(error_list))
+                )
+                pbar_eval.update()
+        logging.info("Evaluation Score:{:.4f}".format(np.mean(error_list)))
+        # save checkpoint
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "loss": np.mean(losses),
+            },
+            CHECKPOINT_PATH,
+        )
 
 torch.save(model.state_dict(), "./proba_v.weights")
 
