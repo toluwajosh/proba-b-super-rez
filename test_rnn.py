@@ -13,9 +13,9 @@ from skimage import io
 import cv2
 
 # private libs
-from data.loader import ProbaVLoader
+from data.loader import ProbaVLoaderRNN
 from models.simple_autoencoder import autoencoder
-from models.resnet import resnet18_AE, resnet50_AE
+from models.resnet_rnn import resnet50_AERNN
 from losses import ProbaVLoss, ProbaVEval
 
 
@@ -26,18 +26,18 @@ LEARNING_RATE = 0.001
 NUM_EPOCHS = 500  # since each data point has at least 19 input samples
 SUMMARY = False
 PRETRAINED = False
-CHECKPOINT_PATH = "./checkpoints/checkpoint.ckpt"
+CHECKPOINT_PATH = "./checkpoints/checkpoint_rnn.ckpt"
 USE_MASK = True
 
 
-test_dataloader = ProbaVLoader("./data/valid", to_tensor=True, mode="train")
+test_dataloader = ProbaVLoaderRNN("./data/valid", to_tensor=True, mode="train")
 test_data = torch.utils.data.DataLoader(
     test_dataloader, batch_size=1, shuffle=True, num_workers=WORKERS, pin_memory=True,
 )
 
 
 # model = autoencoder().cuda()
-model = resnet50_AE(pretrained=PRETRAINED).cuda()
+model = resnet50_AERNN(pretrained=PRETRAINED).cuda()
 if SUMMARY:
     summary(model, (3, 128, 128))
 
@@ -63,14 +63,15 @@ for epoch in range(NUM_EPOCHS):
     model.train()
     with tqdm(total=len(test_data)) as pbar:
         for data in test_data:
-            img = data["input_image"].cuda()
-            img_mask = data["input_mask"].cuda()
+            img = data["input_image"]
             target_image = data["target_image"].cuda()
             target_mask = data["target_mask"].cuda()
-
-            # ===================forward=====================
-            output = model(img)
-            image = torch.nn.functional.interpolate(img, output.shape[2:])
+            samples_num = len(img)
+            output, hidden_ith = model(img[0].cuda())  # first sample
+            for ith in range(1, samples_num):
+                img_ith = img[ith].cuda()
+                output, hidden_ith = model(img_ith, hidden_ith)
+            image = torch.nn.functional.interpolate(img[0].cuda(), output.shape[2:])
             loss = criterion(image, target_image, target_mask)
             losses.append(loss.item())
             output_image = output[0].cpu().detach().numpy()

@@ -11,6 +11,7 @@ import torchvision.transforms as transforms
 import skimage
 from skimage import io
 from skimage.transform import rescale
+from sklearn.utils import shuffle
 
 IMG_EXTENSIONS = [
     ".jpg",
@@ -120,6 +121,77 @@ class ProbaVLoader(data.Dataset):
                 "target_mask": target_q_map,
             }
 
+        return data_dict
+
+    def __len__(self):
+        return len(self.directories)
+
+
+def process_image_batch(image_files_list, process_function):
+    all_images = []
+    for image_file in image_files_list:
+        image = process_function(image_file)
+        all_images.append(image)
+
+    return all_images
+
+
+def tensorize_batch(np_array_list):
+    all_tensors = []
+    for np_array in np_array_list:
+        torch_array = np_array.transpose(2, 0, 1)
+        torch_array = torch.from_numpy(torch_array).float()
+        all_tensors.append(torch_array)
+    return all_tensors
+
+
+class ProbaVLoaderRNN(ProbaVLoader):
+    def __getitem__(self, index):
+        directory = self.directories[index]
+        files = glob.glob(directory + "/*.png")
+
+        lo_images = []
+        lo_q_maps = []
+        for item in files:
+            if item[-6:] == "HR.png":
+                target_image = image_loader(item)
+            elif item[-6:] == "SM.png":
+                target_q_map = image_loader(item)
+            elif item.split("/")[-1][:2] == "LR":
+                lo_images.append(item)
+            else:
+                lo_q_maps.append(item)
+
+        # 1. shuffle the lo_res and map
+        lo_images, _ = shuffle(lo_images, lo_q_maps, random_state=0)
+        # load images
+        lo_images_im = process_image_batch(lo_images, image_loader)
+
+        # lo_image = lo_images_im / 255.0
+        if self.mode == "train":
+            target_image = target_image / 255.0
+
+        target_q_map[target_q_map > 0] = 1
+
+        if self.mode == "train":
+            target_image = target_image.transpose(2, 0, 1)
+            target_image = torch.from_numpy(target_image).float()
+
+        target_q_map = target_q_map.transpose(2, 0, 1)
+        target_q_map = torch.from_numpy(target_q_map).float()
+        lo_image = tensorize_batch(lo_images_im)
+
+        if self.mode == "train":
+            data_dict = {
+                "input_image": lo_image,
+                "target_image": target_image,
+                "target_mask": target_q_map,
+            }
+        else:
+            data_dict = {
+                "input_image": lo_image,
+                "target_mask": target_q_map,
+            }
         return data_dict
 
     def __len__(self):

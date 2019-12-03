@@ -45,7 +45,7 @@ class ProbaVLoss(nn.Module):
     def _mad_mask(self, predict, target, target_mask):
         return torch.mean(torch.abs(predict.mul(target_mask) - target.mul(target_mask)))
 
-    def forward(self, output, target, output_mask, target_mask):
+    def forward(self, output, target, target_mask):
         """
         original image and output mask is lo rez
         final output of model is hi rez
@@ -54,7 +54,7 @@ class ProbaVLoss(nn.Module):
         if self.mask_flag:
             loss_mse = self._mse_mask(output, target, target_mask)
             loss_mad = self._mad_mask(output, target, target_mask)
-            loss = loss_mse + loss_mad
+            loss = loss_mse + 5 * loss_mad
         else:
             loss = nn.MSELoss(output, target)
         return loss
