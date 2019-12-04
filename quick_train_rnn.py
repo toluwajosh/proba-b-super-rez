@@ -28,7 +28,7 @@ WORKERS = 10
 LEARNING_RATE = 0.0001
 NUM_EPOCHS = 100  # since each data point has at least 19 input samples
 SUMMARY = False
-PRETRAINED = True
+PRETRAINED = False
 CHECKPOINT_PATH = "./checkpoints/checkpoint_rnn.ckpt"
 USE_MASK = True
 ACCUMULATE = 1
@@ -38,16 +38,16 @@ CHECKPOINT_INTERVAL = 1
 human_time = str(time.asctime()).replace(" ", "_").replace(":", "")
 log_path = "./logs/{}_rnn.log".format(human_time)
 # create file if it does not exist
-logging.basicConfig(
-    level=logging.INFO,
-    filename=log_path,
-    filemode="w",
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logging.info("Model Hyperparameters --------------- >")
-logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
-logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
-logging.info("ACCUMULATE: {}".format(ACCUMULATE))
+# logging.basicConfig(
+#     level=logging.INFO,
+#     filename=log_path,
+#     filemode="w",
+#     format="%(asctime)s - %(levelname)s - %(message)s",
+# )
+# logging.info("Model Hyperparameters --------------- >")
+# logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
+# logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
+# logging.info("ACCUMULATE: {}".format(ACCUMULATE))
 
 
 train_dataloader = ProbaVLoaderRNN("./data/train", to_tensor=True)
@@ -70,9 +70,9 @@ valid_data = torch.utils.data.DataLoader(
 
 
 model = resnet50_AERNN(pretrained=PRETRAINED).cuda()
-logging.info(str(model))
 if SUMMARY:
-    summary(model, (3, 128, 128))
+    logging.info(str(model))
+    # summary(model, (3, 128, 128))
 
 # criterion = nn.MSELoss()
 criterion = ProbaVLoss(mask_flag=USE_MASK)
@@ -85,30 +85,30 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 )
 epoch_chk = 0
 
-# load existing model
-try:
-    # check if checkpoints file of weights file
-    checkpoint = torch.load(CHECKPOINT_PATH)
+# # load existing model
+# try:
+#     # check if checkpoints file of weights file
+#     checkpoint = torch.load(CHECKPOINT_PATH)
 
-    ## partial loading of model dict
-    # pretrained_dict = checkpoint["model_state_dict"]
-    # model_dict = model.state_dict()
-    # pretrained_dict = {
-    #     k: v
-    #     for k, v in pretrained_dict.items()
-    #     if (k in model_dict) and (model_dict[k].shape == pretrained_dict[k].shape)
-    # }
-    # model_dict.update(pretrained_dict)
-    # model.load_state_dict(model_dict, strict=False)
+#     ## partial loading of model dict
+#     # pretrained_dict = checkpoint["model_state_dict"]
+#     # model_dict = model.state_dict()
+#     # pretrained_dict = {
+#     #     k: v
+#     #     for k, v in pretrained_dict.items()
+#     #     if (k in model_dict) and (model_dict[k].shape == pretrained_dict[k].shape)
+#     # }
+#     # model_dict.update(pretrained_dict)
+#     # model.load_state_dict(model_dict, strict=False)
 
-    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    epoch_chk = checkpoint["epoch"]
-    best_loss = checkpoint["loss"]
-    print("\n\nModel Loaded; ", CHECKPOINT_PATH)
-except Exception as e:
-    print("\n\nModel not loaded; ", CHECKPOINT_PATH)
-    print("Exception: ", e)
+#     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+#     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+#     epoch_chk = checkpoint["epoch"]
+#     best_loss = checkpoint["loss"]
+#     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
+# except Exception as e:
+#     print("\n\nModel not loaded; ", CHECKPOINT_PATH)
+#     print("Exception: ", e)
 
 for epoch in range(NUM_EPOCHS):
     if epoch < epoch_chk:

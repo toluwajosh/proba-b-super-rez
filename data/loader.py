@@ -31,10 +31,12 @@ def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
 
-# def image_loader(path):
-#     return Image.open(path)
 def image_loader(path):
     return cv2.imread(path)
+
+def image_loader_super(path):
+    image = cv2.imread(path)
+    return cv2.resize(image, (384, 384), interpolation=cv2.INTER_CUBIC)
 
 
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -43,11 +45,12 @@ compose = transforms.Compose([normalize])
 
 class ProbaVLoader(data.Dataset):
     def __init__(
-        self, data_directory, to_tensor=False, mode="train",
+        self, data_directory, to_tensor=False, mode="train", interpolate=True,
     ):
         # directories = os.listdir(data_directory)
         # self.directories = [x[0] for x in os.walk(data_directory)]
         self.mode = mode
+        self.interpolate = interpolate
         directories = []
         for item in os.walk(data_directory):
             if len(item[0].split("/")) > 4:  # ignore high level directories
@@ -77,10 +80,8 @@ class ProbaVLoader(data.Dataset):
         # other strategies might be better
         # depending on solution pipeline
         lo_id = random.choice(range(len(lo_q_maps)))
-        # print(lo_images[lo_id])
         lo_image = image_loader(lo_images[lo_id])
         lo_q_map = image_loader(lo_q_maps[lo_id])
-        # target_q_map = image_loader(target_q_maps[lo_id])
 
         # 2. Apply transormations; Resize, etc, if needed
         # transformed_sample = tsfrm(sample)  # <- example
@@ -127,7 +128,7 @@ class ProbaVLoader(data.Dataset):
         return len(self.directories)
 
 
-def process_image_batch(image_files_list, process_function):
+def process_image_batch(image_files_list, process_function, interpolate=False):
     all_images = []
     for image_file in image_files_list:
         image = process_function(image_file)
@@ -165,7 +166,10 @@ class ProbaVLoaderRNN(ProbaVLoader):
         # 1. shuffle the lo_res and map
         lo_images, _ = shuffle(lo_images, lo_q_maps, random_state=0)
         # load images
-        lo_images_im = process_image_batch(lo_images, image_loader)
+        if self.interpolate:
+            lo_images_im = process_image_batch(lo_images, image_loader_super)
+        else:
+            lo_images_im = process_image_batch(lo_images, image_loader)
 
         # lo_image = lo_images_im / 255.0
         if self.mode == "train":

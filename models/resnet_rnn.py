@@ -307,13 +307,15 @@ class ResNetAERNN(ResNet):
             norm_layer,
         )
 
-        self.upsample0 = nn.Sequential(
-            nn.BatchNorm2d(3584), nn.Conv2d(3584, 512, 3, padding=1), nn.Sigmoid(),
-        )
+        # self.upsample0 = nn.Sequential(
+        #     nn.BatchNorm2d(896),
+        #     nn.Conv2d(896, 128, 3, padding=1),
+        #     nn.ReLU(),
+        # )
 
         self.upsample1 = nn.Sequential(
-            nn.BatchNorm2d(512),
-            nn.ConvTranspose2d(512, 256, 3, stride=2),
+            nn.BatchNorm2d(128),
+            nn.ConvTranspose2d(128, 256, 3, stride=2),
             nn.ReLU(),
             nn.BatchNorm2d(256),
             nn.Conv2d(256, 256, 3, padding=1),
@@ -338,37 +340,37 @@ class ResNetAERNN(ResNet):
         # transform features but maintain dimensions
         self.transformer = nn.Sequential(
             nn.BatchNorm2d(3),
-            nn.Conv2d(3, 64, 3, stride=1, padding=1),
+            nn.Conv2d(3, 128, 3, stride=1, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 128, 3, stride=1, padding=1),
-            nn.ReLU(),
+            # nn.BatchNorm2d(64),
+            # nn.Conv2d(64, 128, 3, stride=1, padding=1),
+            # nn.ReLU(),
         )
 
         self.upsample3 = nn.Sequential(
             nn.BatchNorm2d(128 + 64),
-            nn.ConvTranspose2d(128 + 64, 192, 2, stride=1),
+            nn.ConvTranspose2d(128 + 64, 192, 3, stride=1),
             nn.ReLU(),
             nn.BatchNorm2d(192),
-            nn.Conv2d(192, 128, 3, stride=1, padding=1),
+            nn.Conv2d(192, 64, 3, stride=1, padding=0),
             nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.ConvTranspose2d(128, 128, 2, stride=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 64, 3, stride=1, padding=1),
-            nn.ReLU(),
+            # nn.BatchNorm2d(192),
+            # nn.ConvTranspose2d(192, 64, 2, stride=3, padding=1),
+            # nn.ReLU(),
+            # nn.BatchNorm2d(128),
+            # nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            # nn.ReLU(),
         )
 
-        self.final_block_1 = nn.Sequential(
-            nn.BatchNorm2d(64 + 64 + 3),
-            nn.Conv2d(64 + 64 + 3, 64, 3, stride=1, padding=1),
-            nn.ReLU(),
-        )
+        # self.final_block_1 = nn.Sequential(
+        #     nn.BatchNorm2d(64 + 64 + 3),
+        #     nn.Conv2d(64 + 64 + 3, 64, 3, stride=1, padding=1),
+        #     nn.ReLU(),
+        # )
 
         self.final_block_2 = nn.Sequential(
-            nn.BatchNorm2d(64 + 3 + 64),
-            nn.Conv2d(64 + 3 + 64, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64 + 64),
+            nn.Conv2d(64 + 64, 64, 3, stride=1, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(64),
             nn.Conv2d(64, 3, 3, stride=1, padding=1),
@@ -377,7 +379,7 @@ class ResNetAERNN(ResNet):
 
     def _forward(self, x, x_hidden_in=None):
 
-        x_in = x
+        # x_in = x
         x_trans = self.transformer(x)
 
         x_conv = self.conv1(x)
@@ -388,17 +390,17 @@ class ResNetAERNN(ResNet):
         x = self.layer1(x)
 
         xl2 = self.layer2(x)
-        xl3 = self.layer3(xl2)
-        xl4 = self.layer4(xl3)
+        # xl3 = self.layer3(xl2)
+        # xl4 = self.layer4(xl3)
 
-        xl3 = torch.nn.functional.interpolate(
-            xl3, xl2.shape[2:], mode="bicubic", align_corners=True
-        )
-        xl4 = torch.nn.functional.interpolate(
-            xl4, xl2.shape[2:], mode="bicubic", align_corners=True
-        )
-        xfeat = torch.cat([xl2, xl3, xl4], 1)
-        xfeat = self.upsample0(xfeat)
+        # xl3 = torch.nn.functional.interpolate(
+        #     xl3, xl2.shape[2:], mode="bicubic", align_corners=True
+        # )
+        # xl4 = torch.nn.functional.interpolate(
+        #     xl4, xl2.shape[2:], mode="bicubic", align_corners=True
+        # )
+        # xfeat = torch.cat([xl2, xl3, xl4], 1)
+        # xfeat = self.upsample0(xfeat)
 
         x = self.upsample1(xl2)
         x = torch.cat([x_conv, x], 1)
@@ -407,23 +409,25 @@ class ResNetAERNN(ResNet):
         x = torch.cat([x_trans, x_lo], 1)
 
         x = self.upsample3(x)
-        x_interpolate = torch.nn.functional.interpolate(
-            x_lo, x.shape[2:], mode="bicubic", align_corners=True
-        )
-        x_up = torch.nn.functional.interpolate(
-            x_in, x.shape[2:], mode="bicubic", align_corners=True
-        )
-        x = torch.cat([x_up, x_interpolate, x], 1)
-        x = self.final_block_1(x)
-        x_up_2 = torch.nn.functional.interpolate(
-            x_in, x.shape[2:], mode="bicubic", align_corners=True
-        )
+        # print("x.shape: ", x.shape)
+        # exit(0)
+        # x_interpolate = torch.nn.functional.interpolate(
+        #     x_lo, x.shape[2:], mode="bicubic", align_corners=True
+        # )
+        # x_up = torch.nn.functional.interpolate(
+        #     x_in, x.shape[2:], mode="bicubic", align_corners=True
+        # )
+        # x = torch.cat([x_up, x_interpolate, x], 1)
+        # x = self.final_block_1(x)
+        # x_up_2 = torch.nn.functional.interpolate(
+        #     x_in, x.shape[2:], mode="bicubic", align_corners=True
+        # )
         if x_hidden_in is None:
             x_hidden_in = torch.zeros_like(x)
         x_hidden_out = x
-        x = torch.cat([x, x_up_2, x_hidden_in], 1)
+        x = torch.cat([x, x_hidden_in], 1)
         x = self.final_block_2(x)
-        return x, x_hidden_out
+        return x , x_hidden_out
 
     # Allow for accessing forward method in a inherited class
     forward = _forward
@@ -459,5 +463,12 @@ def resnet50_AERNN(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet_AERNN(
-        "resnet50", Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs
+        # "resnet50", Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs
+        "resnet18",
+        BasicBlock,
+        [2, 2, 2, 2],
+        pretrained,
+        progress,
+        **kwargs
+        # "resnet34", BasicBlock, [3, 4, 6, 3], pretrained, progress, **kwargs
     )
