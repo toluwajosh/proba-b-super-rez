@@ -1,34 +1,34 @@
 """
 quick train
 """
-import os
-import torch
-import time
 import logging
+import os
+import time
+
 import numpy as np
+import torch
 import torchvision.models as torch_models
 import torchvision.transforms as transforms
-
-from tqdm import tqdm
 from torch import nn
 from torchsummary import summary
+from tqdm import tqdm
 
 # private libs
 from data.loader import ProbaVLoaderRNN
-from models.simple_autoencoder import autoencoder
+from losses import ProbaVEval, ProbaVLoss
 from models.resnet import resnet18_AE, resnet50_AE
 from models.resnet_rnn import resnet50_AERNN
-from losses import ProbaVLoss, ProbaVEval
+from models.simple_autoencoder import autoencoder
 
 torch.set_num_threads(10)
 
 # hyperparameters
 BATCH_SIZE = 1
 WORKERS = 10
-LEARNING_RATE = 0.0001
-NUM_EPOCHS = 100  # since each data point has at least 19 input samples
-SUMMARY = False
-PRETRAINED = False
+LEARNING_RATE = 0.001
+NUM_EPOCHS = 1000  # since each data point has at least 19 input samples
+SUMMARY = True
+PRETRAINED = True
 CHECKPOINT_PATH = "./checkpoints/checkpoint_rnn.ckpt"
 USE_MASK = True
 ACCUMULATE = 1
@@ -38,16 +38,16 @@ CHECKPOINT_INTERVAL = 1
 human_time = str(time.asctime()).replace(" ", "_").replace(":", "")
 log_path = "./logs/{}_rnn.log".format(human_time)
 # create file if it does not exist
-# logging.basicConfig(
-#     level=logging.INFO,
-#     filename=log_path,
-#     filemode="w",
-#     format="%(asctime)s - %(levelname)s - %(message)s",
-# )
-# logging.info("Model Hyperparameters --------------- >")
-# logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
-# logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
-# logging.info("ACCUMULATE: {}".format(ACCUMULATE))
+logging.basicConfig(
+    level=logging.INFO,
+    filename=log_path,
+    filemode="w",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logging.info("Model Hyperparameters --------------- >")
+logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
+logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
+logging.info("ACCUMULATE: {}".format(ACCUMULATE))
 
 
 train_dataloader = ProbaVLoaderRNN("./data/train", to_tensor=True)
@@ -75,13 +75,13 @@ if SUMMARY:
     # summary(model, (3, 128, 128))
 
 # criterion = nn.MSELoss()
-criterion = ProbaVLoss(mask_flag=USE_MASK)
+criterion = ProbaVLoss(mask_flag=USE_MASK, ssim_weight=0.1)
 eval_criterion = ProbaVEval(mask_flag=USE_MASK)
 optimizer = torch.optim.Adam(
     model.parameters(), lr=LEARNING_RATE
 )  # , weight_decay=1e-5
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.9, patience=60, verbose=True, min_lr=1e-8
+    optimizer, mode="min", factor=0.9, patience=3, verbose=True, min_lr=1e-8
 )
 epoch_chk = 0
 
@@ -90,7 +90,7 @@ epoch_chk = 0
 #     # check if checkpoints file of weights file
 #     checkpoint = torch.load(CHECKPOINT_PATH)
 
-#     ## partial loading of model dict
+#     # # partial loading of model dict
 #     # pretrained_dict = checkpoint["model_state_dict"]
 #     # model_dict = model.state_dict()
 #     # pretrained_dict = {
@@ -106,6 +106,7 @@ epoch_chk = 0
 #     epoch_chk = checkpoint["epoch"]
 #     best_loss = checkpoint["loss"]
 #     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
+#     print("Learning Rate: ", optimizer.param_groups[0]['lr'])
 # except Exception as e:
 #     print("\n\nModel not loaded; ", CHECKPOINT_PATH)
 #     print("Exception: ", e)
@@ -124,64 +125,52 @@ for epoch in range(NUM_EPOCHS):
             samples_num = len(img)
             # ===================forward=====================
             output, hidden_ith = model(img[0].cuda())  # first sample
-            # # calculate loss
-            # loss = criterion(output, target, target_mask)
-            # losses.append(loss.item())
-            # ===================backward====================
-            # optimizer.zero_grad()
-            # loss.backward(retain_graph=True)
-            # optimizer.step()
-            for ith in range(1, samples_num - 1):
+            for ith in range(1, samples_num):
                 img_ith = img[ith]
                 output, hidden_ith = model(img_ith.cuda(), hidden_ith)
-                # # iterative refinement
-                # loss = criterion(output, target, target_mask)
-                # losses.append(loss.item())
-                # optimizer.zero_grad()
-                # loss.backward(retain_graph=True)
-                # optimizer.step()
-
-            output, hidden_ith = model(img[-1].cuda(), hidden_ith)
-            # iterative refinement, final
+            # calculate loss
             loss = criterion(output, target, target_mask)
             losses.append(loss.item())
+            # ===================backward====================
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             pbar.set_description(
-                "Epoch: {:5d}; Loss: {:8.5f}".format(epoch + 1, np.mean(losses))
+                "Epoch: {:5d}; Loss: {:.10f}".format(epoch + 1, np.mean(losses))
             )
             pbar.update()
-    scheduler.step(np.mean(losses))
+    # scheduler.step(np.mean(losses))
     # ===================log========================
     logging.info(
-        "Epoch [{}/{}], Training Loss:{:.4f}".format(
+        "Epoch [{}/{}], Training Loss:{:.10f}".format(
             epoch + 1, NUM_EPOCHS, np.mean(losses)
         )
     )
 
+    torch.cuda.empty_cache()
     if (epoch + 1) % CHECKPOINT_INTERVAL == 0:
         # evaluate model
         model.eval()
-        with tqdm(total=len(valid_data)) as pbar_eval:
-            error_list = []
-            for data in valid_data:
-                img = data["input_image"]
-                target = data["target_image"].cuda()
-                target_mask = data["target_mask"].cuda()
-                samples_num = len(img)
-                output, hidden_ith = model(img[0].cuda())  # first sample
-                for ith in range(1, samples_num):
-                    img_ith = img[ith].cuda()
-                    output, hidden_ith = model(img_ith, hidden_ith)
-                error = eval_criterion(output, target, target_mask)
-                error_list.append(error.item())
+        with torch.no_grad():
+            with tqdm(total=len(valid_data)) as pbar_eval:
+                error_list = []
+                for data in valid_data:
+                    image = data["input_image"]
+                    target = data["target_image"].cuda()
+                    target_mask = data["target_mask"].cuda()
+                    samples_num = len(image)
+                    output, hidden_ith = model(image[0].cuda())  # first sample
+                    for ith in range(1, samples_num):
+                        img_ith = image[ith].cuda()
+                        output, hidden_ith = model(img_ith, hidden_ith)
+                    error = eval_criterion(output, target, target_mask)
+                    error_list.append(error.item())
 
-                pbar_eval.set_description(
-                    "Evaluation score: {:8.5f}".format(np.mean(error_list))
-                )
-                pbar_eval.update()
+                    pbar_eval.set_description(
+                        "Evaluation score: {:.10f}".format(np.mean(error_list))
+                    )
+                    pbar_eval.update()
         logging.info("Evaluation Score:{:.4f}".format(np.mean(error_list)))
         # save checkpoint
         torch.save(
@@ -189,10 +178,10 @@ for epoch in range(NUM_EPOCHS):
                 "epoch": epoch + 1,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
-                "loss": np.mean(losses),
+                "loss": np.mean(error_list),
             },
             CHECKPOINT_PATH,
         )
+    scheduler.step(np.mean(error_list))
 
 torch.save(model.state_dict(), "./proba_v.weights")
-

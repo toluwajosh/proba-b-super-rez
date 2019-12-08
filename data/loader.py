@@ -34,6 +34,7 @@ def is_image_file(filename):
 def image_loader(path):
     return cv2.imread(path)
 
+
 def image_loader_super(path):
     image = cv2.imread(path)
     return cv2.resize(image, (384, 384), interpolation=cv2.INTER_CUBIC)
@@ -140,7 +141,7 @@ def process_image_batch(image_files_list, process_function, interpolate=False):
 def tensorize_batch(np_array_list):
     all_tensors = []
     for np_array in np_array_list:
-        torch_array = np_array.transpose(2, 0, 1)
+        torch_array = np_array.transpose(2, 0, 1) / 255.0
         torch_array = torch.from_numpy(torch_array).float()
         all_tensors.append(torch_array)
     return all_tensors

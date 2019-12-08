@@ -23,11 +23,14 @@ class MSEMask(nn.Module):
 
 
 class ProbaVLoss(nn.Module):
-    def __init__(self, mask_flag=True, brightness_bias_flag=True, crop_size=3):
+    def __init__(
+        self, mask_flag=True, brightness_bias_flag=True, crop_size=3, ssim_weight=0.5
+    ):
         super(ProbaVLoss, self).__init__()
         self.mask_flag = mask_flag
         self.brightness_bias_flag = brightness_bias_flag
         self.crop_size = crop_size
+        self.ssim_weight = ssim_weight
 
     def brightness_bias(self, predict, target):
         return torch.mean(target - predict)
@@ -50,7 +53,7 @@ class ProbaVLoss(nn.Module):
     def _full_loss(self, predict, target):
         loss_mse = self._mse_b(predict, target)
         loss_ssim = self._ssim(predict, target)
-        return loss_mse + 5 * loss_ssim
+        return loss_mse + self.ssim_weight * loss_ssim
 
     def _cropped_loss(self, predict, target):
         cropped_target = target[
@@ -60,10 +63,13 @@ class ProbaVLoss(nn.Module):
         min_loss = 999999999
         for u in range(max_crop):
             for v in range(max_crop):
-                cropped_predict = predict[:, :, u:384-max_crop+u, v:384-max_crop+v]
+                cropped_predict = predict[
+                    :, :, u : 384 - max_crop + u, v : 384 - max_crop + v
+                ]
                 loss_mse = self._mse_b(cropped_predict, cropped_target)
-                loss_ssim = self._ssim(cropped_predict, cropped_target)
-                loss = loss_mse + 5 * loss_ssim
+                # loss_ssim = self._ssim(cropped_predict, cropped_target)
+                # loss = loss_mse + self.ssim_weight * loss_ssim
+                loss = loss_mse
                 if loss < min_loss:
                     min_loss = loss
         return min_loss
@@ -77,7 +83,6 @@ class ProbaVLoss(nn.Module):
         else:
             loss = self._full_loss(predict, target)
         return loss
-        
 
 
 class ProbaVEval(nn.Module):
@@ -93,7 +98,7 @@ class ProbaVEval(nn.Module):
         bb = self.brightness_bias(predict, target)
         predict_out = predict + bb
         return mse_loss(predict_out, target)
-    
+
     def cropped_cmse(self, predict, target):
         cropped_target = target[
             :, :, self.crop_size : -self.crop_size, self.crop_size : -self.crop_size
@@ -102,7 +107,9 @@ class ProbaVEval(nn.Module):
         min_loss = 999999999
         for u in range(max_crop):
             for v in range(max_crop):
-                cropped_predict = predict[:, :, u:384-max_crop+u, v:384-max_crop+v]
+                cropped_predict = predict[
+                    :, :, u : 384 - max_crop + u, v : 384 - max_crop + v
+                ]
                 loss = self.c_mse(cropped_predict, cropped_target)
                 if loss < min_loss:
                     min_loss = loss
@@ -120,6 +127,7 @@ class ProbaVEval(nn.Module):
         predict = predict.mul(target_mask)
         cMSE = self.cropped_cmse(predict, target)
         score = self.c_psnr(cMSE)
+        # score = cMSE
         if baseline is not None:
             score = baseline / score
         return score

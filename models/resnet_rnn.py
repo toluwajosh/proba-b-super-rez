@@ -315,13 +315,13 @@ class ResNetAERNN(ResNet):
 
         self.upsample1 = nn.Sequential(
             nn.BatchNorm2d(128),
-            nn.ConvTranspose2d(128, 256, 3, stride=2),
+            nn.ConvTranspose2d(128, 128, 3, stride=2),
             nn.ReLU(),
-            nn.BatchNorm2d(256),
-            nn.Conv2d(256, 256, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.Conv2d(128, 128, 3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(256),
-            nn.ConvTranspose2d(256, 128, 2, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ConvTranspose2d(128, 128, 2, stride=2, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(128),
             nn.Conv2d(128, 128, 3, padding=1),
@@ -330,10 +330,10 @@ class ResNetAERNN(ResNet):
 
         self.upsample2 = nn.Sequential(
             nn.BatchNorm2d(128 + 64),
-            nn.ConvTranspose2d(128 + 64, 192, 2, stride=2, padding=0),
+            nn.ConvTranspose2d(128 + 64, 128, 2, stride=2, padding=0),
             nn.ReLU(),
-            nn.BatchNorm2d(192),
-            nn.Conv2d(192, 64, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.Conv2d(128, 64, 3, padding=1),
             nn.Sigmoid(),
         )
 
@@ -342,24 +342,18 @@ class ResNetAERNN(ResNet):
             nn.BatchNorm2d(3),
             nn.Conv2d(3, 128, 3, stride=1, padding=1),
             nn.ReLU(),
-            # nn.BatchNorm2d(64),
-            # nn.Conv2d(64, 128, 3, stride=1, padding=1),
+            # nn.BatchNorm2d(128),
+            # nn.Conv2d(128, 128, 3, stride=1, padding=1),
             # nn.ReLU(),
         )
 
         self.upsample3 = nn.Sequential(
             nn.BatchNorm2d(128 + 64),
-            nn.ConvTranspose2d(128 + 64, 192, 3, stride=1),
+            nn.ConvTranspose2d(128 + 64, 128, 3, stride=1),
             nn.ReLU(),
-            nn.BatchNorm2d(192),
-            nn.Conv2d(192, 64, 3, stride=1, padding=0),
+            nn.BatchNorm2d(128),
+            nn.Conv2d(128, 64, 3, stride=1, padding=0),
             nn.ReLU(),
-            # nn.BatchNorm2d(192),
-            # nn.ConvTranspose2d(192, 64, 2, stride=3, padding=1),
-            # nn.ReLU(),
-            # nn.BatchNorm2d(128),
-            # nn.Conv2d(128, 64, 3, stride=1, padding=1),
-            # nn.ReLU(),
         )
 
         # self.final_block_1 = nn.Sequential(
@@ -369,17 +363,20 @@ class ResNetAERNN(ResNet):
         # )
 
         self.final_block_2 = nn.Sequential(
-            nn.BatchNorm2d(64 + 64),
-            nn.Conv2d(64 + 64, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64 + 64 + 3),
+            nn.Conv2d(64 + 64 + 3, 96, 3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(96),
+            nn.Conv2d(96, 64, 3, stride=1, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(64),
             nn.Conv2d(64, 3, 3, stride=1, padding=1),
-            nn.Sigmoid(),
+            nn.Tanh(),
         )
 
     def _forward(self, x, x_hidden_in=None):
 
-        # x_in = x
+        x_in = x
         x_trans = self.transformer(x)
 
         x_conv = self.conv1(x)
@@ -425,9 +422,11 @@ class ResNetAERNN(ResNet):
         if x_hidden_in is None:
             x_hidden_in = torch.zeros_like(x)
         x_hidden_out = x
-        x = torch.cat([x, x_hidden_in], 1)
+        x = torch.cat([x, x_hidden_in, x_in], 1)
         x = self.final_block_2(x)
-        return x , x_hidden_out
+        # x = x + x_in
+        x = x.add(x_in)
+        return x, x_hidden_out
 
     # Allow for accessing forward method in a inherited class
     forward = _forward
