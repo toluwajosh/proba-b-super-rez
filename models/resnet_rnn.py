@@ -374,62 +374,70 @@ class ResNetAERNN(ResNet):
             nn.Tanh(),
         )
 
-    def _forward(self, x, x_hidden_in=None):
-
+    def _forward(self, x, x_prev = None, x_hidden_in=None):
+        # inputs
         x_in = x
+        if x_prev is None:
+            x_prev = torch.zeros_like(x)
         x_trans = self.transformer(x)
 
+        # feature extractor
         x_conv = self.conv1(x)
         x = self.bn1(x_conv)
         x = self.relu(x)
-
         x = self.maxpool(x)
         x = self.layer1(x)
-
         xl2 = self.layer2(x)
-        # xl3 = self.layer3(xl2)
-        # xl4 = self.layer4(xl3)
 
-        # xl3 = torch.nn.functional.interpolate(
-        #     xl3, xl2.shape[2:], mode="bicubic", align_corners=True
-        # )
-        # xl4 = torch.nn.functional.interpolate(
-        #     xl4, xl2.shape[2:], mode="bicubic", align_corners=True
-        # )
-        # xfeat = torch.cat([xl2, xl3, xl4], 1)
-        # xfeat = self.upsample0(xfeat)
-
+        # upsamplers
         x = self.upsample1(xl2)
         x = torch.cat([x_conv, x], 1)
-
-        x_lo = self.upsample2(x)  # original size
+        x_lo = self.upsample2(x)
         x = torch.cat([x_trans, x_lo], 1)
+        x = self.upsample3(x)  # original image
 
-        x = self.upsample3(x)
-        # print("x.shape: ", x.shape)
-        # exit(0)
-        # x_interpolate = torch.nn.functional.interpolate(
-        #     x_lo, x.shape[2:], mode="bicubic", align_corners=True
-        # )
-        # x_up = torch.nn.functional.interpolate(
-        #     x_in, x.shape[2:], mode="bicubic", align_corners=True
-        # )
-        # x = torch.cat([x_up, x_interpolate, x], 1)
-        # x = self.final_block_1(x)
-        # x_up_2 = torch.nn.functional.interpolate(
-        #     x_in, x.shape[2:], mode="bicubic", align_corners=True
-        # )
         if x_hidden_in is None:
             x_hidden_in = torch.zeros_like(x)
         x_hidden_out = x
         x = torch.cat([x, x_hidden_in, x_in], 1)
         x = self.final_block_2(x)
-        # x = x + x_in
-        x = x.add(x_in)
+        x = x.add(x_prev)
         return x, x_hidden_out
 
     # Allow for accessing forward method in a inherited class
     forward = _forward
+
+
+class ConvLSTM(nn.Module):
+    """
+    Convolutional LSTM for image-like inputs
+    """
+
+    def __init__(self, in_channel, out_channel, kernels=3, stride=1, padding=1):
+        self.out_features = out_channel // 2
+        self.conv_cell = nn.Sequential(
+            nn.BatchNorm2d(in_channel),
+            nn.Conv2d(in_channel, 96, kernels, stride=stride, padding=padding),
+            nn.ReLU(),
+            nn.BatchNorm2d(96),
+            nn.Conv2d(96, out_channel, kernels, stride=stride, padding=padding),
+        )
+
+    def forward(self, x, hidden):
+        """
+        x = [prev_x, current_x]
+        hidden = prev_hidden
+        """
+        x_out = self.conv_cell(x)
+        (qi, qf, qc, qo) = torch.split(x_out, self.out_features, dim=1)
+        qi = torch.sigmoid(qi)
+        qf = torch.sigmoid(qf)
+        qo = torch.sigmoid(qo)
+        qc = torch.tanh(qc)
+
+        out_x = qf * hidden + qi * qc
+        out_h = qo*torch.tanh(out_x)
+        return out_x, out_h
 
 
 def _resnet_AERNN(arch, block, layers, pretrained, progress, **kwargs):
