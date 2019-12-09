@@ -362,6 +362,8 @@ class ResNetAERNN(ResNet):
         #     nn.ReLU(),
         # )
 
+        self.conv_lstm_block = ConvLSTM(64+3, 64)
+
         self.final_block_2 = nn.Sequential(
             nn.BatchNorm2d(64 + 64 + 3),
             nn.Conv2d(64 + 64 + 3, 96, 3, stride=1, padding=1),
@@ -371,12 +373,13 @@ class ResNetAERNN(ResNet):
             nn.ReLU(),
             nn.BatchNorm2d(64),
             nn.Conv2d(64, 3, 3, stride=1, padding=1),
-            nn.Tanh(),
+            nn.Sigmoid(),
         )
 
-    def _forward(self, x, x_prev = None, x_hidden_in=None):
+
+    def _forward(self, x, x_prev=None, x_hidden_in=None):
         # inputs
-        x_in = x
+        # x_in = x
         if x_prev is None:
             x_prev = torch.zeros_like(x)
         x_trans = self.transformer(x)
@@ -399,9 +402,11 @@ class ResNetAERNN(ResNet):
         if x_hidden_in is None:
             x_hidden_in = torch.zeros_like(x)
         x_hidden_out = x
-        x = torch.cat([x, x_hidden_in, x_in], 1)
+        x = torch.cat([x, x_hidden_in, x_prev], 1)
+        # x = torch.cat([x, x_prev], 1)
+        # x, x_hidden_out = self.conv_lstm_block(x, x_hidden_in)
+        
         x = self.final_block_2(x)
-        x = x.add(x_prev)
         return x, x_hidden_out
 
     # Allow for accessing forward method in a inherited class
@@ -414,13 +419,14 @@ class ConvLSTM(nn.Module):
     """
 
     def __init__(self, in_channel, out_channel, kernels=3, stride=1, padding=1):
-        self.out_features = out_channel // 2
+        super(ConvLSTM, self).__init__()
+        self.out_features = out_channel
         self.conv_cell = nn.Sequential(
             nn.BatchNorm2d(in_channel),
-            nn.Conv2d(in_channel, 96, kernels, stride=stride, padding=padding),
+            nn.Conv2d(in_channel, 64, kernels, stride=stride, padding=padding),
             nn.ReLU(),
-            nn.BatchNorm2d(96),
-            nn.Conv2d(96, out_channel, kernels, stride=stride, padding=padding),
+            nn.BatchNorm2d(64),
+            nn.Conv2d(64, out_channel, kernels, stride=stride, padding=padding),
         )
 
     def forward(self, x, hidden):
@@ -429,14 +435,14 @@ class ConvLSTM(nn.Module):
         hidden = prev_hidden
         """
         x_out = self.conv_cell(x)
-        (qi, qf, qc, qo) = torch.split(x_out, self.out_features, dim=1)
-        qi = torch.sigmoid(qi)
-        qf = torch.sigmoid(qf)
-        qo = torch.sigmoid(qo)
-        qc = torch.tanh(qc)
+        # (qi, qf, qc, qo) = torch.split(x_out, self.out_features//4, dim=1)
+        qi = torch.sigmoid(x_out)
+        qf = torch.sigmoid(x_out)
+        qo = torch.sigmoid(x_out)
+        qc = torch.tanh(x_out)
 
         out_x = qf * hidden + qi * qc
-        out_h = qo*torch.tanh(out_x)
+        out_h = qo * torch.tanh(out_x)
         return out_x, out_h
 
 
