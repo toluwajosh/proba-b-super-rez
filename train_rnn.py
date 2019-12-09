@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--checkpoint_path",
-    default="./checkpoints/checkpoint_rnn_no_add.ckpt",
+    default="./checkpoints/checkpoint_rnn_w_add.ckpt",
     metavar="'./path/to/checkpoint/file/'",
     help="Path to the checkpoint file",
 )
@@ -71,8 +71,8 @@ NUM_EPOCHS = args.num_epochs
 WORKERS = args.workers
 LOAD_PARTIAL = args.load_partial
 CHECKPOINT_INTERVAL = args.chekcpoints_interval
-BATCH_SIZE = 1 # solution pipeline only works with batch size 1
-SUMMARY = True  # show model summary
+BATCH_SIZE = 1  # solution pipeline only works with batch size 1
+SUMMARY = False  # show model summary
 PRETRAINED = True  # load pretrained model (for base model)
 USE_MASK = True  # use dataset masks
 ACCUMULATE = 1  # accumulate gradients
@@ -143,6 +143,7 @@ try:
         }
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict, strict=False)
+        # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     else:
         model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])

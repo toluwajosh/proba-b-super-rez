@@ -309,13 +309,16 @@ class ResNetAERNN(ResNet):
             norm_layer,
         )
 
-        self.upsample1 = nn.Sequential(
+        self.upsample0 = nn.Sequential(
             nn.BatchNorm2d(128),
             nn.ConvTranspose2d(128, 128, 3, stride=2),
             nn.ReLU(),
             nn.BatchNorm2d(128),
-            nn.Conv2d(128, 128, 3, padding=1),
+            nn.Conv2d(128, 64, 3, padding=1),
             nn.ReLU(),
+        )
+
+        self.upsample1 = nn.Sequential(
             nn.BatchNorm2d(128),
             nn.ConvTranspose2d(128, 128, 2, stride=2, padding=1),
             nn.ReLU(),
@@ -335,12 +338,12 @@ class ResNetAERNN(ResNet):
 
         # transform features but maintain dimensions
         self.transformer = nn.Sequential(
-            nn.BatchNorm2d(3), nn.Conv2d(3, 128, 3, stride=1, padding=1), nn.ReLU(),
+            nn.BatchNorm2d(3), nn.Conv2d(3, 64, 3, stride=1, padding=1), nn.ReLU(),
         )
 
         self.upsample3 = nn.Sequential(
-            nn.BatchNorm2d(128 + 64),
-            nn.ConvTranspose2d(128 + 64, 128, 3, stride=1),
+            nn.BatchNorm2d(64 + 64),
+            nn.ConvTranspose2d(64 + 64, 128, 3, stride=1),
             nn.ReLU(),
             nn.BatchNorm2d(128),
             nn.Conv2d(128, 64, 3, stride=1, padding=0),
@@ -361,21 +364,24 @@ class ResNetAERNN(ResNet):
 
     def _forward(self, x, x_prev=None, x_hidden_in=None):
         # inputs
-        # x_in = x
+        x_in = x
         if x_prev is None:
             x_prev = torch.zeros_like(x)
         x_trans = self.transformer(x)
 
-        # feature extractor
+        # Encoder
         x_conv = self.conv1(x)
         x = self.bn1(x_conv)
         x = self.relu(x)
         x = self.maxpool(x)
-        x = self.layer1(x)
-        xl2 = self.layer2(x)
+        xl1 = self.layer1(x)
+        xl2 = self.layer2(xl1)
 
-        # upsamplers
-        x = self.upsample1(xl2)
+        # Decoder
+        x = self.upsample0(xl2)
+        xl1 = nn.Upsample([x.shape[-2],x.shape[-1]], mode='bicubic', align_corners=True)(xl1)
+        x = torch.cat([xl1, x], 1)
+        x = self.upsample1(x)
         x = torch.cat([x_conv, x], 1)
         x_lo = self.upsample2(x)
         x = torch.cat([x_trans, x_lo], 1)
@@ -384,8 +390,15 @@ class ResNetAERNN(ResNet):
         if x_hidden_in is None:
             x_hidden_in = torch.zeros_like(x)
         x_hidden_out = x
-        x = torch.cat([x, x_hidden_in, x_prev], 1)
+
+        # # no add
+        # x = torch.cat([x, x_hidden_in, x_prev], 1)
+        # x = self.final_block_2(x)
+
+        # in case of adding
+        x = torch.cat([x, x_hidden_in, x_in], 1)
         x = self.final_block_2(x)
+        x = x.add(x_prev)
         return x, x_hidden_out
 
     # Allow for accessing forward method in a inherited class
