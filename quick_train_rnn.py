@@ -29,7 +29,7 @@ LEARNING_RATE = 0.001
 NUM_EPOCHS = 1000  # since each data point has at least 19 input samples
 SUMMARY = True
 PRETRAINED = True
-CHECKPOINT_PATH = "./checkpoints/checkpoint_conv_lstm.ckpt"
+CHECKPOINT_PATH = "./checkpoints/checkpoint_rnn_no_add.ckpt"
 USE_MASK = True
 ACCUMULATE = 1
 CHECKPOINT_INTERVAL = 1
@@ -39,16 +39,16 @@ load_partial = True
 human_time = str(time.asctime()).replace(" ", "_").replace(":", "")
 log_path = "./logs/{}_rnn.log".format(human_time)
 # create file if it does not exist
-# logging.basicConfig(
-#     level=logging.INFO,
-#     filename=log_path,
-#     filemode="w",
-#     format="%(asctime)s - %(levelname)s - %(message)s",
-# )
-# logging.info("Model Hyperparameters --------------- >")
-# logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
-# logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
-# logging.info("ACCUMULATE: {}".format(ACCUMULATE))
+logging.basicConfig(
+    level=logging.INFO,
+    filename=log_path,
+    filemode="w",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logging.info("Model Hyperparameters --------------- >")
+logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
+logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
+logging.info("ACCUMULATE: {}".format(ACCUMULATE))
 
 
 train_dataloader = ProbaVLoaderRNN("./data/train", to_tensor=True)
@@ -71,9 +71,9 @@ valid_data = torch.utils.data.DataLoader(
 
 
 model = resnet50_AERNN(pretrained=PRETRAINED).cuda()
-# if SUMMARY:
-#     logging.info(str(model))
-#     # summary(model, (3, 128, 128))
+if SUMMARY:
+    logging.info(str(model))
+    # summary(model, (3, 128, 128))
 
 # criterion = nn.MSELoss()
 criterion = ProbaVLoss(mask_flag=USE_MASK, ssim_weight=0.1)
