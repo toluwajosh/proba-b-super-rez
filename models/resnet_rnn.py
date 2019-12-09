@@ -1,5 +1,7 @@
 """
-ResNet
+ResNet:
+Original code is from official pytorch and torchvision implementation.
+https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 """
 import torch
 import torch.nn as nn
@@ -307,12 +309,6 @@ class ResNetAERNN(ResNet):
             norm_layer,
         )
 
-        # self.upsample0 = nn.Sequential(
-        #     nn.BatchNorm2d(896),
-        #     nn.Conv2d(896, 128, 3, padding=1),
-        #     nn.ReLU(),
-        # )
-
         self.upsample1 = nn.Sequential(
             nn.BatchNorm2d(128),
             nn.ConvTranspose2d(128, 128, 3, stride=2),
@@ -339,12 +335,7 @@ class ResNetAERNN(ResNet):
 
         # transform features but maintain dimensions
         self.transformer = nn.Sequential(
-            nn.BatchNorm2d(3),
-            nn.Conv2d(3, 128, 3, stride=1, padding=1),
-            nn.ReLU(),
-            # nn.BatchNorm2d(128),
-            # nn.Conv2d(128, 128, 3, stride=1, padding=1),
-            # nn.ReLU(),
+            nn.BatchNorm2d(3), nn.Conv2d(3, 128, 3, stride=1, padding=1), nn.ReLU(),
         )
 
         self.upsample3 = nn.Sequential(
@@ -355,14 +346,6 @@ class ResNetAERNN(ResNet):
             nn.Conv2d(128, 64, 3, stride=1, padding=0),
             nn.ReLU(),
         )
-
-        # self.final_block_1 = nn.Sequential(
-        #     nn.BatchNorm2d(64 + 64 + 3),
-        #     nn.Conv2d(64 + 64 + 3, 64, 3, stride=1, padding=1),
-        #     nn.ReLU(),
-        # )
-
-        self.conv_lstm_block = ConvLSTM(64+3, 64)
 
         self.final_block_2 = nn.Sequential(
             nn.BatchNorm2d(64 + 64 + 3),
@@ -375,7 +358,6 @@ class ResNetAERNN(ResNet):
             nn.Conv2d(64, 3, 3, stride=1, padding=1),
             nn.Sigmoid(),
         )
-
 
     def _forward(self, x, x_prev=None, x_hidden_in=None):
         # inputs
@@ -403,9 +385,6 @@ class ResNetAERNN(ResNet):
             x_hidden_in = torch.zeros_like(x)
         x_hidden_out = x
         x = torch.cat([x, x_hidden_in, x_prev], 1)
-        # x = torch.cat([x, x_prev], 1)
-        # x, x_hidden_out = self.conv_lstm_block(x, x_hidden_in)
-        
         x = self.final_block_2(x)
         return x, x_hidden_out
 

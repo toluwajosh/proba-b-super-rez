@@ -1,6 +1,7 @@
 """
 quick train
 """
+import argparse
 import logging
 import os
 import time
@@ -20,25 +21,67 @@ from models.resnet import resnet18_AE, resnet50_AE
 from models.resnet_rnn import resnet50_AERNN
 from models.simple_autoencoder import autoencoder
 
-torch.set_num_threads(10)
+parser = argparse.ArgumentParser(
+    description="Train model for predicting Proba-v Super resoltion image"
+)
+parser.add_argument(
+    "--checkpoint_path",
+    default="./checkpoints/checkpoint_rnn_no_add.ckpt",
+    metavar="'./path/to/checkpoint/file/'",
+    help="Path to the checkpoint file",
+)
+parser.add_argument(
+    "--learning_rate",
+    required=False,
+    default=0.001,
+    metavar="<0.0001>",
+    help="supply the learning rate for the training",
+)
+parser.add_argument(
+    "--num_epochs",
+    required=False,
+    default=1000,
+    metavar="<1000>",
+    help="The number of epochs for training",
+)
+parser.add_argument(
+    "--workers",
+    required=False,
+    default=10,
+    metavar="<10>",
+    help="The number of process workers",
+)
+parser.add_argument(
+    "--chekcpoints_interval",
+    required=False,
+    default=1,
+    metavar="<10>",
+    help="Intervals for saving checkpoints",
+)
+parser.add_argument(
+    "--load_partial", action="store_false", help="Load partial weights",
+)
+
+args = parser.parse_args()
 
 # hyperparameters
-BATCH_SIZE = 1
-WORKERS = 10
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 1000  # since each data point has at least 19 input samples
-SUMMARY = True
-PRETRAINED = True
-CHECKPOINT_PATH = "./checkpoints/checkpoint_rnn_no_add.ckpt"
-USE_MASK = True
-ACCUMULATE = 1
-CHECKPOINT_INTERVAL = 1
-load_partial = True
+CHECKPOINT_PATH = args.checkpoint_path
+LEARNING_RATE = args.learning_rate
+NUM_EPOCHS = args.num_epochs
+WORKERS = args.workers
+LOAD_PARTIAL = args.load_partial
+CHECKPOINT_INTERVAL = args.chekcpoints_interval
+BATCH_SIZE = 1 # solution pipeline only works with batch size 1
+SUMMARY = True  # show model summary
+PRETRAINED = True  # load pretrained model (for base model)
+USE_MASK = True  # use dataset masks
+ACCUMULATE = 1  # accumulate gradients
+
+torch.set_num_threads(WORKERS)
 
 # log parameters
 human_time = str(time.asctime()).replace(" ", "_").replace(":", "")
 log_path = "./logs/{}_rnn.log".format(human_time)
-# create file if it does not exist
 logging.basicConfig(
     level=logging.INFO,
     filename=log_path,
@@ -71,16 +114,14 @@ valid_data = torch.utils.data.DataLoader(
 
 
 model = resnet50_AERNN(pretrained=PRETRAINED).cuda()
-if SUMMARY:
-    logging.info(str(model))
-    # summary(model, (3, 128, 128))
+logging.info(str(model))
 
-# criterion = nn.MSELoss()
+if SUMMARY:
+    summary(model, (3, 128, 128))
+
 criterion = ProbaVLoss(mask_flag=USE_MASK, ssim_weight=0.1)
 eval_criterion = ProbaVEval(mask_flag=USE_MASK)
-optimizer = torch.optim.Adam(
-    model.parameters(), lr=LEARNING_RATE
-)  # , weight_decay=1e-5
+optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="min", factor=0.9, patience=3, verbose=True, min_lr=1e-8
 )
@@ -91,7 +132,7 @@ try:
     # check if checkpoints file of weights file
     checkpoint = torch.load(CHECKPOINT_PATH)
 
-    if load_partial:
+    if LOAD_PARTIAL:
         # partial loading of model dict
         pretrained_dict = checkpoint["model_state_dict"]
         model_dict = model.state_dict()
@@ -108,7 +149,7 @@ try:
     epoch_chk = checkpoint["epoch"]
     best_loss = checkpoint["loss"]
     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
-    print("Learning Rate: ", optimizer.param_groups[0]['lr'])
+    print("Learning Rate: ", optimizer.param_groups[0]["lr"])
 except Exception as e:
     print("\n\nModel not loaded; ", CHECKPOINT_PATH)
     print("Exception: ", e)
