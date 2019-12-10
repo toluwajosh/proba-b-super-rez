@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--checkpoint_path",
-    default="./checkpoints/checkpoint_rnn_w_add.ckpt",
+    default="./checkpoints/checkpoint_rnn_w_add_post41.ckpt",
     metavar="'./path/to/checkpoint/file/'",
     help="Path to the checkpoint file",
 )
@@ -59,7 +59,7 @@ parser.add_argument(
     help="Intervals for saving checkpoints",
 )
 parser.add_argument(
-    "--load_partial", action="store_false", help="Load partial weights",
+    "--load_partial", action="store_true", help="Load partial weights",
 )
 
 args = parser.parse_args()
@@ -133,6 +133,7 @@ try:
     checkpoint = torch.load(CHECKPOINT_PATH)
 
     if LOAD_PARTIAL:
+        print("Loading Partial......")
         # partial loading of model dict
         pretrained_dict = checkpoint["model_state_dict"]
         model_dict = model.state_dict()
