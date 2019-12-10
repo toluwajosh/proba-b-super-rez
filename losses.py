@@ -74,12 +74,18 @@ class ProbaVLoss(nn.Module):
                     min_loss = loss
         return min_loss
 
-    def forward(self, predict, target, target_mask):
+    def c_psnr(self, cmse):
+        return -10 * torch.log10(cmse)
+
+    def forward(self, predict, target, target_mask, baseline=None):
         if self.mask_flag:
             target = target.mul(target_mask)
             predict = predict.mul(target_mask)
         if self.crop_size:
             loss = self._cropped_loss(predict, target)
+            if baseline:
+                loss = loss + 0.1 * torch.abs(baseline - self.c_psnr(loss))
+
         else:
             loss = self._full_loss(predict, target)
         return loss

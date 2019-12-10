@@ -191,11 +191,13 @@ class ProbaVLoaderRNN(ProbaVLoader):
                 "input_image": lo_image,
                 "target_image": target_image,
                 "target_mask": target_q_map,
+                "directory": directory.split("/")[-1]
             }
         else:
             data_dict = {
                 "input_image": lo_image,
                 "target_mask": target_q_map,
+                "directory": directory
             }
         return data_dict
 
@@ -204,5 +206,5 @@ class ProbaVLoaderRNN(ProbaVLoader):
 
 
 if __name__ == "__main__":
-    train_dataset = Dataloader("./data/train", to_tensor=True)
-    print(train_dataset[0]["target_mask"].shape)
+    train_dataset = ProbaVLoaderRNN("./data/train", to_tensor=True)
+    print(train_dataset[0]["directory"])

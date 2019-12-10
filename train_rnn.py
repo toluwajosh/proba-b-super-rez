@@ -20,13 +20,14 @@ from losses import ProbaVEval, ProbaVLoss
 from models.resnet import resnet18_AE, resnet50_AE
 from models.resnet_rnn import resnet50_AERNN
 from models.simple_autoencoder import autoencoder
+from score_csv import BaseScore
 
 parser = argparse.ArgumentParser(
     description="Train model for predicting Proba-v Super resoltion image"
 )
 parser.add_argument(
     "--checkpoint_path",
-    default="./checkpoints/checkpoint_rnn_w_add_post41.ckpt",
+    default="./checkpoints/checkpoint_rnn_w_add_post41_evaled.ckpt",
     metavar="'./path/to/checkpoint/file/'",
     help="Path to the checkpoint file",
 )
@@ -82,16 +83,16 @@ torch.set_num_threads(WORKERS)
 # log parameters
 human_time = str(time.asctime()).replace(" ", "_").replace(":", "")
 log_path = "./logs/{}_rnn.log".format(human_time)
-logging.basicConfig(
-    level=logging.INFO,
-    filename=log_path,
-    filemode="w",
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logging.info("Model Hyperparameters --------------- >")
-logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
-logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
-logging.info("ACCUMULATE: {}".format(ACCUMULATE))
+# logging.basicConfig(
+#     level=logging.INFO,
+#     filename=log_path,
+#     filemode="w",
+#     format="%(asctime)s - %(levelname)s - %(message)s",
+# )
+# logging.info("Model Hyperparameters --------------- >")
+# logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
+# logging.info("LEARNING_RATE: {}".format(LEARNING_RATE))
+# logging.info("ACCUMULATE: {}".format(ACCUMULATE))
 
 
 train_dataloader = ProbaVLoaderRNN("./data/train", to_tensor=True)
@@ -112,9 +113,11 @@ valid_data = torch.utils.data.DataLoader(
     pin_memory=True,
 )
 
+base_scores = BaseScore()
+
 
 model = resnet50_AERNN(pretrained=PRETRAINED).cuda()
-logging.info(str(model))
+# logging.info(str(model))
 
 if SUMMARY:
     summary(model, (3, 128, 128))
@@ -176,7 +179,8 @@ for epoch in range(NUM_EPOCHS):
                 output, hidden_ith = model(img_ith.cuda(), img_prev, hidden_ith)
                 img_prev = img_ith.cuda()
             # calculate loss
-            loss = criterion(output, target, target_mask)
+            baseline = base_scores[data["directory"][0]]
+            loss = criterion(output, target, target_mask, baseline=baseline)
             losses.append(loss.item())
             # ===================backward====================
             optimizer.zero_grad()

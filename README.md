@@ -22,19 +22,20 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 - [X] Datareader
 - [X] Dummy Model
 - [X] Base Model - Resnet
-- [ ] Objective function
+- [X] Objective functions
   - [X] MSE
   - [X] Masking
+  - [X] SSIM - Not used
 - [ ] Pretraining
   - [X] Learning rate scheduling
   - [X] Checkpoints
   - [X] Logging
   - [ ] Augmentations
-  - [ ] Training monitoring
-- [ ] Final Model - Resnet++
-- [ ] Final Training and Validation
+  - [X] Training monitoring
+- [X] Final Model - Resnet++
+- [X] Final Training and Validation
 - [ ] Combine multiple results
-- [ ] Model Evaluation and analysis
+- [X] Model Evaluation and analysis
 
 ## Links
 
