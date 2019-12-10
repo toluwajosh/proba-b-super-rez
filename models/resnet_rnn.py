@@ -357,6 +357,9 @@ class ResNetAERNN(ResNet):
             nn.BatchNorm2d(96),
             nn.Conv2d(96, 64, 3, stride=1, padding=1),
             nn.ReLU(),
+        )
+
+        self.final_block = nn.Sequential(
             nn.BatchNorm2d(64),
             nn.Conv2d(64, 3, 3, stride=1, padding=1),
             nn.Sigmoid(),
@@ -398,6 +401,7 @@ class ResNetAERNN(ResNet):
         # in case of adding
         x = torch.cat([x, x_hidden_in, x_in], 1)
         x = self.final_block_2(x)
+        x = self.final_block(x)
         x = x.add(x_prev)
         return x, x_hidden_out
 
