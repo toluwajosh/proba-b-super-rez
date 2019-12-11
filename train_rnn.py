@@ -217,7 +217,8 @@ for epoch in range(NUM_EPOCHS):
                         img_ith = image[ith]
                         output, hidden_ith = model(img_ith.cuda(), img_prev, hidden_ith)
                         img_prev = img_ith.cuda()
-                    error = eval_criterion(output, target, target_mask)
+                    baseline = base_scores[data["directory"][0]]
+                    error = eval_criterion(output, target, target_mask, baseline=baseline)
                     error_list.append(error.item())
 
                     pbar_eval.set_description(

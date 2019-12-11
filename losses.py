@@ -66,7 +66,7 @@ class ProbaVLoss(nn.Module):
                 cropped_predict = predict[
                     :, :, u : 384 - max_crop + u, v : 384 - max_crop + v
                 ]
-                loss_mse = self._mse_b(cropped_predict, cropped_target)
+                loss_mse = self._mse_b(cropped_predict * 255, cropped_target * 255)
                 # loss_ssim = self._ssim(cropped_predict, cropped_target)
                 # loss = loss_mse + self.ssim_weight * loss_ssim
                 loss = loss_mse
@@ -84,7 +84,7 @@ class ProbaVLoss(nn.Module):
         if self.crop_size:
             loss = self._cropped_loss(predict, target)
             if baseline:
-                loss = loss + 0.1 * torch.abs(baseline - self.c_psnr(loss))
+                loss = loss + torch.abs(baseline - self.c_psnr(loss))
 
         else:
             loss = self._full_loss(predict, target)
