@@ -165,7 +165,7 @@ class ProbaVLoaderRNN(ProbaVLoader):
                 lo_q_maps.append(item)
 
         # 1. shuffle the lo_res and map
-        lo_images, _ = shuffle(lo_images, lo_q_maps, random_state=0)
+        # lo_images, _ = shuffle(lo_images, lo_q_maps, random_state=0)
         # load images
         if self.interpolate:
             lo_images_im = process_image_batch(lo_images, image_loader_super)

@@ -362,7 +362,7 @@ class ResNetAERNN(ResNet):
         self.final_block = nn.Sequential(
             nn.BatchNorm2d(64),
             nn.Conv2d(64, 3, 3, stride=1, padding=1),
-            nn.Sigmoid(),
+            nn.Tanh(),
         )
 
     def _forward(self, x, x_prev=None, x_hidden_in=None):
