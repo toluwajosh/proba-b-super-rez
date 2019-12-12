@@ -34,7 +34,7 @@ parser.add_argument(
 parser.add_argument(
     "--learning_rate",
     required=False,
-    default=0.001,
+    default=0.0001,
     metavar="<0.0001>",
     help="supply the learning rate for the training",
 )
@@ -147,7 +147,7 @@ try:
         }
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict, strict=False)
-        # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     else:
         model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
