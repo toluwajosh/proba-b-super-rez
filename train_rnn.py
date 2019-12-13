@@ -221,26 +221,26 @@ for epoch in range(NUM_EPOCHS):
                     baseline = base_scores[data["directory"][0]]
                     error = eval_criterion(output, target, target_mask, baseline=baseline)
                     error_list.append(error.item())
+                    score = np.mean(error_list)
 
                     pbar_eval.set_description(
-                        "Evaluation score: {:.10f}".format(np.mean(error_list))
+                        "Evaluation score: {:.10f}".format(score)
                     )
                     pbar_eval.update()
-        logging.info("Evaluation Score:{:.4f}".format(np.mean(error_list)))
+        logging.info("Evaluation Score:{:.4f}".format(score))
         # save checkpoint
-        score = np.mean(error_list)
         if score < best_score:
-            print("Training Improved!")
+            print("Training Improved! -> ", score)
             torch.save(
                 {
                     "epoch": epoch + 1,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "loss": np.mean(error_list),
+                    "loss": score,
                 },
                 CHECKPOINT_PATH,
             )
             best_score = score
-    scheduler.step(np.mean(error_list))
+    scheduler.step(score)
 
 torch.save(model.state_dict(), "./proba_v.weights")
