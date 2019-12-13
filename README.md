@@ -34,7 +34,7 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
   - [X] Training monitoring
 - [X] Final Model - Resnet++
 - [X] Final Training and Validation
-- [ ] Combine multiple results
+- [X] Combine multiple outputs
 - [X] Model Evaluation and analysis
 
 ## Links
@@ -43,3 +43,4 @@ The data is composed of radiometrically and geometrically corrected Top-Of-Atmos
 - [Scoring](https://kelvins.esa.int/proba-v-super-resolution/scoring/)
 - [Submission Rules](https://kelvins.esa.int/proba-v-super-resolution/submission-rules/)
 - [Post mortem](https://kelvins.esa.int/proba-v-super-resolution-post-mortem/leaderboard/)
+- [Report](report.md)
