@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--checkpoint_path",
-    default="./checkpoints/checkpoint_rnn_final.ckpt",
+    default="./checkpoints/checkpoint_rnn_tanh.ckpt",
     metavar="'./path/to/checkpoint/file/'",
     help="Path to the checkpoint file",
 )
@@ -129,6 +129,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="min", factor=0.9, patience=3, verbose=True, min_lr=1e-8
 )
 epoch_chk = 0
+best_score = 0
 
 # load existing model
 try:
@@ -152,7 +153,7 @@ try:
         model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     epoch_chk = checkpoint["epoch"]
-    best_loss = checkpoint["loss"]
+    best_score = checkpoint["loss"]
     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
     print("Learning Rate: ", optimizer.param_groups[0]["lr"])
 except Exception as e:
@@ -191,7 +192,6 @@ for epoch in range(NUM_EPOCHS):
                 "Epoch: {:5d}; Loss: {:.10f}".format(epoch + 1, np.mean(losses))
             )
             pbar.update()
-    # scheduler.step(np.mean(losses))
     # ===================log========================
     logging.info(
         "Epoch [{}/{}], Training Loss:{:.10f}".format(
@@ -227,15 +227,18 @@ for epoch in range(NUM_EPOCHS):
                     pbar_eval.update()
         logging.info("Evaluation Score:{:.4f}".format(np.mean(error_list)))
         # save checkpoint
-        torch.save(
-            {
-                "epoch": epoch + 1,
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "loss": np.mean(error_list),
-            },
-            CHECKPOINT_PATH,
-        )
+        score = np.mean(error_list)
+        if score < best_score:
+            torch.save(
+                {
+                    "epoch": epoch + 1,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "loss": np.mean(error_list),
+                },
+                CHECKPOINT_PATH,
+            )
+            best_score = score
     scheduler.step(np.mean(error_list))
 
 torch.save(model.state_dict(), "./proba_v.weights")
