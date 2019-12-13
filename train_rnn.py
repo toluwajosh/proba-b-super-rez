@@ -156,6 +156,7 @@ try:
     best_score = checkpoint["loss"]
     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
     print("Learning Rate: ", optimizer.param_groups[0]["lr"])
+    print("Best Score: ", best_score)
 except Exception as e:
     print("\n\nModel not loaded; ", CHECKPOINT_PATH)
     print("Exception: ", e)
@@ -229,6 +230,7 @@ for epoch in range(NUM_EPOCHS):
         # save checkpoint
         score = np.mean(error_list)
         if score < best_score:
+            print("Training Improved!")
             torch.save(
                 {
                     "epoch": epoch + 1,
