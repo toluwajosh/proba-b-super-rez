@@ -22,7 +22,7 @@ from losses import ProbaVLoss, ProbaVEval
 # hyperparameters
 BATCH_SIZE = 1
 WORKERS = 8
-CHECKPOINT_PATH = "./checkpoints/checkpoint_rnn.ckpt"
+CHECKPOINT_PATH = "./checkpoints/checkpoint_rnn_final.ckpt"
 USE_MASK = True
 
 
@@ -57,11 +57,13 @@ with torch.no_grad():
             target_mask = data["target_mask"].cuda()
             samples_num = len(img)
             output, hidden_ith = model(img[0].cuda())  # first sample
+            img_prev = img[0].cuda()
             for ith in range(1, samples_num):
                 img_ith = img[ith].cuda()
-                output, hidden_ith = model(img_ith, hidden_ith)
+                output, hidden_ith = model(img_ith.cuda(), img_prev, hidden_ith)
+                img_prev = img_ith.cuda()
             # image = torch.nn.functional.interpolate(img[0].cuda(), output.shape[2:], mode='bicubic', align_corners=True)
-            image = img[0].cuda()
+            # image = img[0].cuda()
             # output = image
             loss = criterion(output, target_image, target_mask)
             losses.append(loss.item())
@@ -71,6 +73,6 @@ with torch.no_grad():
             target_image = np.transpose(target_image, [1, 2, 0])
             cv2.imwrite("output_image.jpg", output_image * 255)
             cv2.imwrite("target_image.jpg", target_image * 255)
-            # exit(0)
+            exit(0)
             pbar.set_description("Evaluation: Loss: {:8.5f}".format(np.mean(losses)))
             pbar.update()
