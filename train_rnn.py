@@ -77,6 +77,7 @@ SUMMARY = False  # show model summary
 PRETRAINED = True  # load pretrained model (for base model)
 USE_MASK = True  # use dataset masks
 ACCUMULATE = 1  # accumulate gradients
+PATIENCE = 5 # number of epochs before optimizer update
 
 torch.set_num_threads(WORKERS)
 
@@ -126,7 +127,7 @@ criterion = ProbaVLoss(mask_flag=USE_MASK, ssim_weight=0.1)
 eval_criterion = ProbaVEval(mask_flag=USE_MASK)
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.9, patience=3, verbose=True, min_lr=1e-8
+    optimizer, mode="min", factor=0.9, patience=PATIENCE, verbose=True, min_lr=1e-8
 )
 epoch_chk = 0
 best_score = 0
@@ -230,7 +231,7 @@ for epoch in range(NUM_EPOCHS):
         logging.info("Evaluation Score:{:.4f}".format(score))
         # save checkpoint
         if score < best_score:
-            print("Training Improved! -> ", score)
+            print("\nTraining Improved! -> ", score)
             torch.save(
                 {
                     "epoch": epoch + 1,
