@@ -13,6 +13,8 @@ from skimage import io
 from skimage.transform import rescale
 from sklearn.utils import shuffle
 
+from image_augmentations import select_stack_augmentation
+
 IMG_EXTENSIONS = [
     ".jpg",
     ".JPG",
@@ -31,27 +33,24 @@ def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
 
-def image_loader(path):
-    return cv2.imread(path)
-
-
-def image_loader_super(path):
-    image = cv2.imread(path)
-    return cv2.resize(image, (384, 384), interpolation=cv2.INTER_CUBIC)
-
-
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 compose = transforms.Compose([normalize])
 
 
 class ProbaVLoader(data.Dataset):
     def __init__(
-        self, data_directory, to_tensor=False, mode="train", interpolate=True,
+        self,
+        data_directory,
+        to_tensor=False,
+        mode="train",
+        interpolate=True,
+        augment=True,
     ):
         # directories = os.listdir(data_directory)
         # self.directories = [x[0] for x in os.walk(data_directory)]
         self.mode = mode
         self.interpolate = interpolate
+        self.augment = augment
         directories = []
         for item in os.walk(data_directory):
             if len(item[0].split("/")) > 4:  # ignore high level directories
@@ -61,6 +60,23 @@ class ProbaVLoader(data.Dataset):
         print("Directories: ", len(self.directories))
         print(data_directory, " Done!")
 
+    def image_loader(self, path):
+        return cv2.imread(path)
+
+    def image_loader_super(self, path):
+        image = cv2.imread(path)
+        if self.augment and random.random() > 0.5:
+            image = select_stack_augmentation(
+                [image],
+                saturation=True,
+                brightness=True,
+                contrast=True,
+                sharpness=True,
+                hue=True,
+                gamma=True,
+            )
+        return cv2.resize(image, (384, 384), interpolation=cv2.INTER_CUBIC)
+
     def __getitem__(self, index):
         directory = self.directories[index]
         files = glob.glob(directory + "/*.png")
@@ -69,9 +85,9 @@ class ProbaVLoader(data.Dataset):
         lo_q_maps = []
         for item in files:
             if item[-6:] == "HR.png":
-                target_image = image_loader(item)
+                target_image = self.image_loader(item)
             elif item[-6:] == "SM.png":
-                target_q_map = image_loader(item)
+                target_q_map = self.image_loader(item)
             elif item.split("/")[-1][:2] == "LR":
                 lo_images.append(item)
             else:
@@ -81,8 +97,8 @@ class ProbaVLoader(data.Dataset):
         # other strategies might be better
         # depending on solution pipeline
         lo_id = random.choice(range(len(lo_q_maps)))
-        lo_image = image_loader(lo_images[lo_id])
-        lo_q_map = image_loader(lo_q_maps[lo_id])
+        lo_image = self.image_loader(lo_images[lo_id])
+        lo_q_map = self.image_loader(lo_q_maps[lo_id])
 
         # 2. Apply transormations; Resize, etc, if needed
         # transformed_sample = tsfrm(sample)  # <- example
@@ -156,9 +172,9 @@ class ProbaVLoaderRNN(ProbaVLoader):
         lo_q_maps = []
         for item in files:
             if item[-6:] == "HR.png":
-                target_image = image_loader(item)
+                target_image = self.image_loader(item)
             elif item[-6:] == "SM.png":
-                target_q_map = image_loader(item)
+                target_q_map = self.image_loader(item)
             elif item.split("/")[-1][:2] == "LR":
                 lo_images.append(item)
             else:
@@ -168,9 +184,9 @@ class ProbaVLoaderRNN(ProbaVLoader):
         # lo_images, _ = shuffle(lo_images, lo_q_maps, random_state=0)
         # load images
         if self.interpolate:
-            lo_images_im = process_image_batch(lo_images, image_loader_super)
+            lo_images_im = process_image_batch(lo_images, self.image_loader_super)
         else:
-            lo_images_im = process_image_batch(lo_images, image_loader)
+            lo_images_im = process_image_batch(lo_images, self.image_loader)
 
         # lo_image = lo_images_im / 255.0
         if self.mode == "train":
@@ -191,13 +207,13 @@ class ProbaVLoaderRNN(ProbaVLoader):
                 "input_image": lo_image,
                 "target_image": target_image,
                 "target_mask": target_q_map,
-                "directory": directory.split("/")[-1]
+                "directory": directory.split("/")[-1],
             }
         else:
             data_dict = {
                 "input_image": lo_image,
                 "target_mask": target_q_map,
-                "directory": directory
+                "directory": directory,
             }
         return data_dict
 

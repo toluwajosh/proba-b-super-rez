@@ -30,7 +30,6 @@ test_dataloader = ProbaVLoaderRNN("./data/valid", to_tensor=True, mode="train")
 test_data = torch.utils.data.DataLoader(
     test_dataloader,
     batch_size=BATCH_SIZE,
-    shuffle=True,
     num_workers=WORKERS,
     pin_memory=True,
 )

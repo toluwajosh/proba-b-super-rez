@@ -105,13 +105,12 @@ train_data = torch.utils.data.DataLoader(
     pin_memory=True,
 )
 
-valid_dataloader = ProbaVLoaderRNN("./data/valid", to_tensor=True)
+valid_dataloader = ProbaVLoaderRNN("./data/valid", to_tensor=True, augment=False)
 valid_data = torch.utils.data.DataLoader(
     valid_dataloader,
     batch_size=BATCH_SIZE,
-    shuffle=True,
     num_workers=WORKERS,
-    pin_memory=True,
+    pin_memory=True
 )
 
 base_scores = BaseScore()
@@ -129,6 +128,10 @@ optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="min", factor=0.9, patience=PATIENCE, verbose=True, min_lr=1e-8
 )
+
+# scheduler = torch.optim.lr_scheduler.CyclicLR(
+#     optimizer, 1e-6, 0.001, step_size_up=1000
+# )
 epoch_chk = 0
 best_score = 0
 
@@ -149,10 +152,10 @@ try:
         }
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict, strict=False)
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     else:
         model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     epoch_chk = checkpoint["epoch"]
     best_score = checkpoint["loss"]
     print("\n\nModel Loaded; ", CHECKPOINT_PATH)
@@ -181,6 +184,7 @@ for epoch in range(NUM_EPOCHS):
                 img_ith = img[ith]
                 output, hidden_ith = model(img_ith.cuda(), img_prev, hidden_ith)
                 img_prev = img_ith.cuda()
+                # we can add losses here, however requires more compute power to accumulate the loss
             # calculate loss
             # baseline = base_scores[data["directory"][0]]
             loss = criterion(output, target, target_mask)
